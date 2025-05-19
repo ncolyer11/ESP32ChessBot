@@ -21,6 +21,7 @@ static const char STARTING_FEN[] = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR 
 
 void init_board();
 void print_board(bool show_params = false, bool show_bitboards = false);
-void load_position_from_fen(const char* fen);
+void print_params();
+void print_bitboards();
 
 #endif
