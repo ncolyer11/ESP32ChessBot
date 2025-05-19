@@ -5,6 +5,7 @@
 #include <string>
 
 #include "board.h"
+#include "boardRepresentation.h"
 #include "piece.h"
 #include "fen.h"
 #include "util.h"

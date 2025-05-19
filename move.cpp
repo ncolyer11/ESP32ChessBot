@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "board.h"
+#include "boardRepresentation.h"
 #include "move.h"
 #include "piece.h"
 #include "util.h"

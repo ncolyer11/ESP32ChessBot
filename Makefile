@@ -3,7 +3,7 @@ SHELL=cmd.exe
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -O2
 
-SRCS = main.cpp board.cpp movegen.cpp move.cpp search.cpp eval.cpp opening.cpp util.cpp fen.cpp
+SRCS = main.cpp board.cpp movegen.cpp move.cpp search.cpp eval.cpp opening.cpp util.cpp fen.cpp boardRepresentation.cpp
 OBJDIR = build
 DEPDIR = build
 
