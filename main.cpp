@@ -13,11 +13,11 @@
 int main() {
     std::cout << "Chess engine starting..." << std::endl;
 
-    // // Board setup
-    // init_board();
+    // Board setup
+    init_board();
 
-    // // Example: Print the starting board
-    // print_board();
+    // Example: Print the starting board
+    print_board();
 
     // // Example: Generate moves and print count
     // int move_count = generate_moves();
