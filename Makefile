@@ -33,4 +33,5 @@ clean:
 	del /Q $(OBJDIR)\*.o $(DEPDIR)\*.d $(TARGET)
 
 test: $(TARGET)
-	@call run_tests.bat
+	@cmd.exe /c run_tests.bat
+

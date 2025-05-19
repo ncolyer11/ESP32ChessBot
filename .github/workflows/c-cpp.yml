@@ -18,6 +18,8 @@ jobs:
 
       - name: Run tests
         run: make test
+        shell: cmd
+
 
       - name: Clean
         run: make clean
