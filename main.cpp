@@ -11,7 +11,7 @@
 // Engine features and modules listed as reference above
 
 int main() {
-    std::cout << "Chess engine satarting..." << std::endl;
+    std::cout << "Chess engine starting..." << std::endl;
 
     // // Board setup
     // init_board();
