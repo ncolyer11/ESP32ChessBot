@@ -26,8 +26,27 @@ $(OBJDIR):
 # Include dependency files if they exist
 -include $(DEPS)
 
+.PHONY: all clean test
+
 # Clean rule
 clean:
 	del /Q $(OBJDIR)\*.o $(DEPDIR)\*.d $(TARGET)
 
-.PHONY: all clean
+test: $(TARGET)
+	@echo "Running test suite..."
+	@pass=0; fail=0; \
+	for t in tests/*.in; do \
+		name=$${t%.in}; \
+		echo -n "Testing $${name}... "; \
+		./$(TARGET) < $$t > tmp.out; \
+		if diff -q tmp.out $${name}.out >/dev/null; then \
+			echo "PASSED"; pass=$$((pass+1)); \
+		else \
+			echo "FAILED"; fail=$$((fail+1)); \
+			echo "Diff:"; diff tmp.out $${name}.out; \
+		fi \
+	done; \
+	rm -f tmp.out; \
+	echo "$$pass passed, $$fail failed."; \
+	test $$fail -eq 0
+
