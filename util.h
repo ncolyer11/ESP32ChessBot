@@ -6,6 +6,7 @@
 
 extern bool player1_is_human;
 extern bool player2_is_human;
+extern bool player_types[2];
 
 void get_player_types();
 int file_rank_to_square_idx(int file, int rank);

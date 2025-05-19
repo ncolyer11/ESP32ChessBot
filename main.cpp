@@ -27,10 +27,8 @@ int main() {
 }
 
 void play() {
-    bool player_types[2] = {player1_is_human, player2_is_human};
-
     while (true) {
-        print_board(true);
+        print_board(true, true);
         std::string move;
         move = player_types[board.side_to_move] ? get_next_player_move() : get_next_bot_move();
         if (move == "exit") break;
