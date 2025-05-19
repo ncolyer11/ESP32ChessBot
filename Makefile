@@ -9,19 +9,19 @@ SRCS = main.cpp \
 
 OBJDIR = build
 DEPDIR = build
+BINDIR = bin
 
 OBJS = $(SRCS:src/ai/%.cpp=$(OBJDIR)/src/ai/%.o)
 OBJS := $(OBJS:src/%.cpp=$(OBJDIR)/src/%.o)
 OBJS := $(OBJS:main.cpp=$(OBJDIR)/main.o)
 
-
 DEPS = $(OBJS:.o=.d)
 
-TARGET = bin/chesp32.exe
+TARGET = $(BINDIR)\chesp32.exe
 
 all: $(TARGET)
 
-$(TARGET): $(OBJS)
+$(TARGET): $(OBJS) | $(BINDIR)
 	$(CXX) -o $@ $^
 
 $(OBJDIR)/main.o: main.cpp | $(OBJDIR)
@@ -42,6 +42,9 @@ $(OBJDIR)/src:
 $(OBJDIR)/src/ai:
 	mkdir $(OBJDIR)\src\ai
 
+$(BINDIR):
+	mkdir $(BINDIR)
+
 -include $(DEPS)
 
 .PHONY: all clean test
@@ -49,8 +52,7 @@ $(OBJDIR)/src/ai:
 clean:
 	del /S /Q $(OBJDIR)\*.o
 	del /S /Q $(OBJDIR)\*.d
-	del /Q $(TARGET)
-
+	del $(TARGET)
 
 test: $(TARGET)
 	@cmd.exe /c .\scripts\run_tests.bat
