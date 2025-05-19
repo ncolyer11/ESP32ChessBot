@@ -26,7 +26,5 @@
 *.a
 *.lib
 
-# Executables
-*.exe
-*.out
-*.app
+create_project.ps1
+.vscode/settings.json
