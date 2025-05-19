@@ -2,7 +2,6 @@
 
 #include <string>
 
-// File and rank names
 extern const char FILE_NAMES[];
 extern const char RANK_NAMES[];
 
@@ -25,7 +24,6 @@ constexpr int F8 = 61;
 constexpr int G8 = 62;
 constexpr int H8 = 63;
 
-// Functions
 int square_idx_to_file_idx(int square_idx);
 int square_idx_to_rank_idx(int square_idx);
 int file_rank_to_square_idx(int file_idx, int rank_idx);

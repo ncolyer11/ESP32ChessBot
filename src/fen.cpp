@@ -44,7 +44,7 @@ void load_position_from_fen(const char* fen) {
         } else if (isdigit(symbol)) {
             file += symbol - '0';
         } else {
-            uint8_t piece = symbol_to_piece(symbol);
+            Piece piece = symbol_to_piece(symbol);
             uint8_t square_idx = file_rank_to_square_idx(file, rank);
             // 64-bit mask with 1 at the square position, 1ULL is a 64-bit unsigned long long
             uint64_t square_mask = 1ULL << square_idx;
@@ -66,7 +66,7 @@ std::string export_position_to_fen() {
     for (int rank = 7; rank >= 0; --rank) {
         int empty_count = 0;
         for (int file = 0; file < 8; ++file) {
-            uint8_t piece = board.squares[rank * 8 + file];
+            Piece piece = board.squares[rank * 8 + file];
             if (piece == NONE) {
                 empty_count++;
             } else {

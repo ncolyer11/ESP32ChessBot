@@ -1,16 +1,14 @@
-#include <iostream>
 #include <bitset>
+#include <iostream>
 
 #include "board.h"
 #include "boardRepresentation.h"
-#include "piece.h"
 #include "fen.h"
+#include "movegen.h"
+#include "piece.h"
 #include "util.h"
 
-
 Board board;
-
-void parse_fen_flags(const char* fen, char *fen_board);
 
 void init_board() {
     load_position_from_fen(STARTING_FEN);
@@ -24,7 +22,7 @@ void print_board(bool show_params, bool show_bitboards) {
         std::cout << rank + 1 << " ";
         for (int file = 0; file < 8; ++file) {
             int square_idx = file_rank_to_square_idx(file, rank);
-            uint8_t piece = board.squares[square_idx];
+            Piece piece = board.squares[square_idx];
             char symbol = PIECE_SYMBOLS[piece & TYPE_MASK];
             if (piece & BLACK) symbol = tolower(symbol);
             std::cout << symbol << ' ';
@@ -45,6 +43,7 @@ void print_board(bool show_params, bool show_bitboards) {
         print_bitboards();
     }
 }
+
 void print_params() {
     // Side to move
     std::cout << "Params: " << (board.side_to_move == 0 ? "w" : "b") << ' ';

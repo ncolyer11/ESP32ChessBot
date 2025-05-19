@@ -46,8 +46,8 @@ bool make_move(const std::string& move) {
     int from_index = alg_to_square_idx(move.substr(0, 2));
     int to_index = alg_to_square_idx(move.substr(2, 2));
 
-    uint8_t dest_piece = board.squares[to_index];
-    uint8_t moving_piece = board.squares[from_index];
+    Piece dest_piece = board.squares[to_index];
+    Piece moving_piece = board.squares[from_index];
 
     // 'Move' the piece in memory
     board.squares[to_index] = moving_piece;
@@ -64,7 +64,7 @@ bool make_move(const std::string& move) {
     
     // Check for promotions
     if (move.length() == 5) {
-        uint8_t promotion_piece;
+        Piece promotion_piece;
         switch (move[5]) {
             case 'q': promotion_piece = QUEEN; break;
             case 'r': promotion_piece = ROOK; break;
