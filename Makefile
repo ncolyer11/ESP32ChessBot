@@ -1,39 +1,56 @@
-SHELL=cmd.exe
+SHELL = cmd.exe
 
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -O2
 
-SRCS = main.cpp board.cpp movegen.cpp move.cpp search.cpp eval.cpp opening.cpp util.cpp fen.cpp boardRepresentation.cpp
+SRCS = main.cpp \
+       src/board.cpp src/boardRepresentation.cpp src/util.cpp src/fen.cpp src/move.cpp \
+       src/ai/eval.cpp src/ai/movegen.cpp src/ai/opening.cpp src/ai/search.cpp
+
 OBJDIR = build
 DEPDIR = build
 
-OBJS = $(SRCS:%.cpp=$(OBJDIR)/%.o)
-DEPS = $(SRCS:%.cpp=$(DEPDIR)/%.d)
-TARGET = chesp32.exe
+OBJS = $(SRCS:src/ai/%.cpp=$(OBJDIR)/src/ai/%.o)
+OBJS := $(OBJS:src/%.cpp=$(OBJDIR)/src/%.o)
+OBJS := $(OBJS:main.cpp=$(OBJDIR)/main.o)
+
+
+DEPS = $(OBJS:.o=.d)
+
+TARGET = bin/chesp32.exe
 
 all: $(TARGET)
 
-# Rule to link the target
 $(TARGET): $(OBJS)
 	$(CXX) -o $@ $^
 
-# Ensure OBJDIR exists before compiling
-$(OBJDIR)/%.o: %.cpp | $(OBJDIR)
-	$(CXX) $(CXXFLAGS) -MMD -c $< -o $@
+$(OBJDIR)/main.o: main.cpp | $(OBJDIR)
+	$(CXX) $(CXXFLAGS) -Iinclude -MMD -c $< -o $@
 
-# Pattern rule to create the object/dependency folder
+$(OBJDIR)/src/%.o: src/%.cpp | $(OBJDIR)/src
+	$(CXX) $(CXXFLAGS) -Iinclude -MMD -c $< -o $@
+
+$(OBJDIR)/src/ai/%.o: src/ai/%.cpp | $(OBJDIR)/src/ai
+	$(CXX) $(CXXFLAGS) -Iinclude -MMD -c $< -o $@
+
 $(OBJDIR):
 	mkdir $(OBJDIR)
 
-# Include dependency files if they exist
+$(OBJDIR)/src:
+	mkdir $(OBJDIR)\src
+
+$(OBJDIR)/src/ai:
+	mkdir $(OBJDIR)\src\ai
+
 -include $(DEPS)
 
 .PHONY: all clean test
 
-# Clean rule
 clean:
-	del /Q $(OBJDIR)\*.o $(DEPDIR)\*.d $(TARGET)
+	del /S /Q $(OBJDIR)\*.o
+	del /S /Q $(OBJDIR)\*.d
+	del /Q $(TARGET)
+
 
 test: $(TARGET)
-	@cmd.exe /c run_tests.bat
-
+	@cmd.exe /c .\scripts\run_tests.bat

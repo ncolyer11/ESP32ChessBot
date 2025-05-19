@@ -9,7 +9,7 @@ for %%t in (tests\*.in) do (
     set name=%%~nt
     echo Testing tests\!name!... 
 
-    .\chesp32.exe < tests\!name!.in > tmp_actual.txt
+    .\bin\chesp32.exe < tests\!name!.in > tmp_actual.txt
     set "expected=tests\!name!.out"
 
     fc /b tmp_actual.txt !expected! >nul
