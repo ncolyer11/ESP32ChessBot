@@ -9,7 +9,7 @@ DEPDIR = build
 
 OBJS = $(SRCS:%.cpp=$(OBJDIR)/%.o)
 DEPS = $(SRCS:%.cpp=$(DEPDIR)/%.d)
-TARGET = diyChessEngine.exe
+TARGET = chesp32.exe
 
 all: $(TARGET)
 
