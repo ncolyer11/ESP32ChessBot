@@ -47,12 +47,13 @@ void load_position_from_fen(const char* fen) {
             Piece piece = symbol_to_piece(symbol);
             uint8_t square_idx = file_rank_to_square_idx(file, rank);
             // 64-bit mask with 1 at the square position, 1ULL is a 64-bit unsigned long long
-            uint64_t square_mask = 1ULL << square_idx;
+            U64 square_mask = 1ULL << square_idx;
             board.squares[square_idx] = piece;
             board.bitboards[piece_to_bitboard_idx(piece)] |= square_mask;
             file++;
         }
     }
+
     // Parse the rest of the FEN parameters
     parse_and_load_fen_params(fen + strlen(fen_board));
 }

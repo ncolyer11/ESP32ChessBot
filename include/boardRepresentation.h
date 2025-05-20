@@ -28,7 +28,7 @@ int square_idx_to_file_idx(int square_idx);
 int square_idx_to_rank_idx(int square_idx);
 int file_rank_to_square_idx(int file_idx, int rank_idx);
 std::pair<int, int> square_idx_to_file_rank(int square_idx);
-int is_light_square(int file_idx, int rank_idx);
+bool is_light_square(int file_idx, int rank_idx);
 std::string square_name_from_coordinate(int file_idx, int rank_idx);
 std::string square_name_from_idx(int square_idx);
 int alg_to_square_idx(const std::string& alg);

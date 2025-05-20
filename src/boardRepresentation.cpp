@@ -1,3 +1,4 @@
+#include <iostream>
 #include <string>
 
 #include "boardRepresentation.h"
@@ -21,8 +22,8 @@ std::pair<int, int> square_idx_to_file_rank(int square_idx) {
     return {square_idx_to_file_idx(square_idx), square_idx_to_rank_idx(square_idx)};
 }
 
-int is_light_square(int file_idx, int rank_idx) {
-    return (file_idx + rank_idx) % 2;
+bool is_light_square(int file_idx, int rank_idx) {
+    return ((file_idx + rank_idx) % 2 == 1);
 }
 
 std::string square_name_from_coordinate(int file_idx, int rank_idx) {

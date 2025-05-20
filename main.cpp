@@ -8,6 +8,8 @@
 #include "movegen.h" // advanced logic for generating all moves and picking the best one
 #include "util.h"
 
+// https://lichess.org/editor
+
 void play();
 
 int main() {
@@ -32,12 +34,16 @@ int main() {
 void play() {
     while (true) {
         print_board(true, false); // show params, show bitboards
-        std::string move;
-        move = player_types[board.side_to_move] ? get_next_player_move() : get_next_bot_move();
-        if (move == "exit") break;
-        if (!make_move(move)) break;
-
-        board.side_to_move ^= 1; // switch player: 0 -> 1, 1 -> 0
-        // std::this_thread::sleep_for(std::chrono::seconds(1));
+        Move move = player_types[board.side_to_move] ? get_next_player_move() : get_next_bot_move();
+        // exit on error or ctrl + d
+        if (move == INVALID_MOVE) break;
+        // exit on end of game and print checkmate or stalemate message
+        if (move == NO_MOVES) { check_end_game_conditions(&board, legal_move_count); break; }
+        // exit on invalid move, also switches players
+        if (!make_move_on_board(&board, move)) break;
+        if (!player1_is_human && !player2_is_human) {
+            // Pause for a bit so bots don't spam
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
     }
 }

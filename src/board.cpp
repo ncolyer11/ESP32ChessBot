@@ -11,27 +11,37 @@
 Board board;
 
 void init_board() {
+    // constexpr char check_fen[] = "4k3/8/2p5/2P5/8/2b5/1N3P2/K6N w - - 0 1";
+    // constexpr char stalemate_fen[] = "7k/2p5/5N2/2P5/8/5R2/1N3P2/K7 b - - 0 1";
     load_position_from_fen(STARTING_FEN);
-    std::cout << "Board initialised." << std::endl;
+    std::cout << "Board initialised.\n" << std::endl;
 }
 
 // Default args: show_params = false, show_bitboards = false
 void print_board(bool show_params, bool show_bitboards) {
-    // Minimal placeholder implementation
     for (int rank = 7; rank >= 0; --rank) {
-        std::cout << rank + 1 << " ";
+        // Rank label
+        std::cout << (rank + 1) << " " << RESET;
         for (int file = 0; file < 8; ++file) {
-            int square_idx = file_rank_to_square_idx(file, rank);
-            Piece piece = board.squares[square_idx];
-            char symbol = PIECE_SYMBOLS[piece & TYPE_MASK];
-            if (piece & BLACK) symbol = tolower(symbol);
-            std::cout << symbol << ' ';
+            Piece piece = board.squares[file_rank_to_square_idx(file, rank)];
+
+            // Square color: light (white) or dark (green/blue)
+            const char* bg = is_light_square(file, rank) ? WHITE_BG : GREEN_BG;
+
+            // Piece emoji (or blank)
+            std::cout << bg << get_sprite(piece) << RESET;
         }
         std::cout << std::endl;
     }
-    std::cout << "  a b c d e f g h" << std::endl;
 
-    // Show additional parameters if requested after printin
+    // File labels
+    std::cout << "  ";
+    for (char c = 'a'; c <= 'h'; ++c) {
+        std::cout << c << ' ';
+    }
+    std::cout << std::endl;
+
+    // Show additional parameters if requested
     if (show_params) {
         std::cout << std::endl;
         print_params();
@@ -39,8 +49,8 @@ void print_board(bool show_params, bool show_bitboards) {
 
     // Show bitboards if requested
     if (show_bitboards) {
-        std::cout << std::endl;
         print_bitboards();
+        std::cout << std::endl;
     }
 }
 
