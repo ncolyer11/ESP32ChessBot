@@ -2,6 +2,7 @@
 #include <cstring>
 #include <cctype>
 #include <iostream>
+#include <limits>
 #include <regex>
 #include <string>
 
@@ -11,7 +12,7 @@
 #include "fen.h"
 #include "util.h"
 
-void parse_and_load_fen_params(const char* rest);
+void parse_and_load_fen_params(const char*rest);
 void parse_and_export_fen_params(std::string fen);
 
 
@@ -24,11 +25,11 @@ void parse_and_export_fen_params(std::string fen);
  *
  * @param fen The FEN string describing the board state.
  */
-void load_position_from_fen(const char* fen) {
+void load_position_from_fen(std::string fen) {
     // Clear old Board state
     std::memset(board.squares, NONE, sizeof(board.squares));
     std::memset(board.bitboards, 0, sizeof(board.bitboards));
-
+    std::cout << "Loading position from FEN: " << fen << std::endl;
     int file = 0, rank = 7;
 
     // Only take board layout (before first space)
@@ -56,7 +57,7 @@ void load_position_from_fen(const char* fen) {
     }
 
     // Parse the rest of the FEN parameters
-    parse_and_load_fen_params(fen + strlen(fen_board));
+    parse_and_load_fen_params(fen.c_str() + strlen(fen_board));
 }
 
 /**
@@ -92,34 +93,32 @@ std::string export_position_to_fen() {
     return fen;
 }
 
-const char *choose_fen() {
+std::string choose_fen() {
     std::string fen;
-    std::cout << "Enter a starting position (FEN or [custom_name]): ";
-    std::cin >> fen;
-    if (!fen.empty() && fen.front() == '[' && fen.back() == ']') {
-        fen = fen.substr(1, fen.length() - 2);
-        if (fen.empty()) return starting_fen;
+    std::cout << "Enter a starting position (FEN or @custom_name): ";
+    std::getline(std::cin, fen);
+    std::cout << "Read: " << fen << std::endl;
+    if (!fen.empty() && fen[0] == '@') {
+        fen = fen.substr(1, fen.length() - 1);
 
-        if (fen == "default") return starting_fen;
+        if (fen.empty() || fen == "default") return starting_fen;
         if (fen == "queens") return queens_fen;
         if (fen == "stalemate") return stalemate_fen;
         if (fen == "check") return check_fen;
         if (fen == "coverage") return coverage_fen;
+        if (fen == "castle") return castling_fen;
     }
 
-    // Basic FEN regex: 6 space-separated fields, first field = at least 8 chars (for pieces/ranks)
-    static const std::regex fen_regex(
-        R"(([rnbqkpRNBQKP1-8]+\/){7}[rnbqkpRNBQKP1-8]+ [wb] (K?Q?k?q?|-) (-|[a-h][36]) \d+ \d+)"
-    );
-    if (std::regex_match(fen, fen_regex)) return fen.c_str();
-
+    if (std::regex_match(fen, fen_regex)) return fen;
+    
+    std::cout << "Invalid FEN format. Using default starting position." << std::endl;
     return starting_fen;
 }
 
 
 
 // After parsing board layout, parse rest of FEN:
-void parse_and_load_fen_params(const char* rest) {
+void parse_and_load_fen_params(const char *rest) {
     if (*rest == ' ') rest++;
 
     // 2. Parse side to move
@@ -134,10 +133,10 @@ void parse_and_load_fen_params(const char* rest) {
     } else {
         for (; *rest && *rest != ' '; rest++) {
             switch (*rest) {
-                case 'K': board.castling_rights |= 0b1000; break;
-                case 'Q': board.castling_rights |= 0b0100; break;
-                case 'k': board.castling_rights |= 0b0010; break;
-                case 'q': board.castling_rights |= 0b0001; break;
+                case 'K': board.castling_rights |= 0b0001; break;
+                case 'Q': board.castling_rights |= 0b0010; break;
+                case 'k': board.castling_rights |= 0b0100; break;
+                case 'q': board.castling_rights |= 0b1000; break;
             }
         }
     }

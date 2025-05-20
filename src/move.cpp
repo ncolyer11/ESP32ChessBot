@@ -21,7 +21,7 @@ U64 bitboard_for_piece(const Board* b, Piece piece);
  * 
  * @return true if the move was made successfully
  */
-bool make_move_on_board(Board* b, Move move) {
+bool make_move_on_board(Board *b, Move move) {
     if (!validate_move_encoding(move)) {
         std::cout << "[make_move_on_board] Invalid move encoding: " << move << std::endl;
         return false;
@@ -38,8 +38,8 @@ bool make_move_on_board(Board* b, Move move) {
     } else {
         apply_normal_move(b, from, to, piece, captured);
         // Double pawn move, i.e. pawn has moved 2 ranks
-        if (abs(to / 8 - from / 8) == 2) {
-            b->enpassant_square = (from + to) / 2;
+        if (flag == 7) {
+            b->enpassant_square = (from + to) / 2; // one square behind it
         } else {
             b->enpassant_square = 64;
         }
@@ -60,7 +60,7 @@ bool make_move_on_board(Board* b, Move move) {
 
 // -- Helpers --
 
-void apply_normal_move(Board* b, int from, int to, Piece piece, Piece captured) {
+void apply_normal_move(Board *b, int from, int to, Piece piece, Piece captured) {
     b->squares[to] = piece;
     b->squares[from] = NONE;
     b->bitboards[piece_to_bitboard_idx(piece)] ^= (1ULL << from) | (1ULL << to);
@@ -69,7 +69,7 @@ void apply_normal_move(Board* b, int from, int to, Piece piece, Piece captured) 
     }
 }
 
-void apply_promotion_move(Board* b, int from, int to, Piece piece, int flag) {
+void apply_promotion_move(Board *b, int from, int to, Piece piece, int flag) {
     Piece promo = 0;
     switch (flag) {
         case 3: promo = QUEEN; break;
@@ -84,40 +84,48 @@ void apply_promotion_move(Board* b, int from, int to, Piece piece, int flag) {
     b->bitboards[piece_to_bitboard_idx(promo)] |= (1ULL << to);
 }
 
-void apply_en_passant_move(Board* b, int from, int to, Piece piece) {
+void apply_en_passant_move(Board *b, int from, int to, Piece piece) {
     b->squares[to] = piece;
     b->squares[from] = NONE;
     b->bitboards[piece_to_bitboard_idx(piece)] ^= (1ULL << from) | (1ULL << to);
     int ep_capture_sq = to + (b->side_to_move ? 8 : -8);
     b->bitboards[piece_to_bitboard_idx(PAWN | opponent_colour())] ^= (1ULL << ep_capture_sq);
     b->squares[ep_capture_sq] = NONE;
+    b->enpassant_square = 64;
 }
 
-void apply_castling_move(Board* b, int from, int to, Piece piece) {
-    b->squares[to] = piece;
+void apply_castling_move(Board *b, int from, int to, Piece king) {
+    // std::cout << "[apply_castling_move] King moves from " << square_idx_to_alg(from)
+    //           << " to " << square_idx_to_alg(to) << std::endl;
+    b->squares[to] = king;
     b->squares[from] = NONE;
-    b->bitboards[piece_to_bitboard_idx(piece)] ^= (1ULL << from) | (1ULL << to);
+    b->bitboards[piece_to_bitboard_idx(king)] ^= (1ULL << from) | (1ULL << to);
+
     // Move rook
     if (to == 6) { // White kingside
-        b->squares[5] = b->squares[7];
+        // std::cout << "[apply_castling_move] White kingside rook moves from h1 to f1" << std::endl;
+        b->squares[5] = (ROOK | WHITE);
         b->squares[7] = NONE;
         b->bitboards[piece_to_bitboard_idx(ROOK | WHITE)] ^= (1ULL << 5) | (1ULL << 7);
     } else if (to == 2) { // White queenside
-        b->squares[3] = b->squares[0];
+        // std::cout << "[apply_castling_move] White queenside rook moves from a1 to d1" << std::endl;
+        b->squares[3] = (ROOK | WHITE);
         b->squares[0] = NONE;
         b->bitboards[piece_to_bitboard_idx(ROOK | WHITE)] ^= (1ULL << 3) | (1ULL << 0);
     } else if (to == 62) { // Black kingside
-        b->squares[61] = b->squares[63];
+        // std::cout << "[apply_castling_move] Black kingside rook moves from h8 to f8" << std::endl;
+        b->squares[61] = (ROOK | BLACK);
         b->squares[63] = NONE;
         b->bitboards[piece_to_bitboard_idx(ROOK | BLACK)] ^= (1ULL << 61) | (1ULL << 63);
     } else if (to == 58) { // Black queenside
-        b->squares[59] = b->squares[56];
+        // std::cout << "[apply_castling_move] Black queenside rook moves from a8 to d8" << std::endl;
+        b->squares[59] = (ROOK | BLACK);
         b->squares[56] = NONE;
         b->bitboards[piece_to_bitboard_idx(ROOK | BLACK)] ^= (1ULL << 59) | (1ULL << 56);
     }
 }
 
-void update_castling_rights(Board* b, int from, int to, Piece piece, Piece captured) {
+void update_castling_rights(Board *b, int from, int to, Piece piece, Piece captured) {
     // If king moved
     if ((piece & TYPE_MASK) == KING) {
         switch (piece & COLOUR_MASK) {
@@ -146,7 +154,7 @@ void update_castling_rights(Board* b, int from, int to, Piece piece, Piece captu
 }
 
 // -- King in check detection (uses attack bitboards) --
-bool king_in_check(const Board* b, bool side_to_move) {
+bool king_in_check(const Board *b, bool side_to_move) {
     Piece king = KING | (side_to_move ? BLACK : WHITE);
     U64 king_bb = b->bitboards[piece_to_bitboard_idx(king)];
     if (king_bb == 0) {
@@ -189,7 +197,7 @@ bool king_in_check(const Board* b, bool side_to_move) {
             if (target == NONE) continue;
             uint8_t opp_color = side_to_move ? WHITE : BLACK;
             int type = target & TYPE_MASK;
-            const char* attacking_piece = nullptr;
+            const char *attacking_piece = nullptr;
             if ((target & COLOUR_MASK) == opp_color) {
                 if (type == QUEEN) attacking_piece = "queen";
                 else if (type == ROOK && dir < 4) attacking_piece = "rook";
@@ -210,7 +218,7 @@ bool king_in_check(const Board* b, bool side_to_move) {
 }
 
 // Return the bitboard for specific coloured piece
-U64 bitboard_for_piece(const Board* b, Piece piece) {
+U64 bitboard_for_piece(const Board *b, Piece piece) {
     return b->bitboards[piece_to_bitboard_idx(piece)];
 }
 
@@ -260,12 +268,13 @@ bool validate_move_encoding(Move move) {
     int flag = move_flag(move);
 
     // Check that from and to are valid square indices (0-63)
-    if (from < 0 || from >= 64 || to < 0 || to >= 64)
+    if (from < 0 || from >= 64 || to < 0 || to >= 64) {
         return false;
-
+    }
     // Check that flag is within expected range (0-7 for standard moves, 3-6 for promotions)
-    if (flag < 0 || flag > 6)
+    if (flag < 0 || flag > 7) {
         return false;
+    }
 
     return true;
 }

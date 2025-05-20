@@ -35,16 +35,16 @@ static inline bool is_friendly(Piece piece) { return (piece & COLOUR_MASK) == fr
 static inline bool is_opponent(Piece piece) { return (piece & COLOUR_MASK) == opponent_colour(); }
 
 
-bool is_valid_move(Move move);
+bool is_valid_move(Move *move);
 
 // Updating board with moves
-bool make_move_on_board(struct Board* b, Move move);
-void apply_normal_move(Board* b, int from, int to, Piece piece, Piece captured);
-void apply_promotion_move(Board* b, int from, int to, Piece piece, int flag);
-void apply_en_passant_move(Board* b, int from, int to, Piece piece);
-void apply_castling_move(Board* b, int from, int to, Piece piece);
-void update_castling_rights(Board* b, int from, int to, Piece piece, Piece captured);
-bool king_in_check(const struct Board* b, bool side_to_move);
+bool make_move_on_board(struct Board *b, Move move);
+void apply_normal_move(Board *b, int from, int to, Piece piece, Piece captured);
+void apply_promotion_move(Board *b, int from, int to, Piece piece, int flag);
+void apply_en_passant_move(Board *b, int from, int to, Piece piece);
+void apply_castling_move(Board *b, int from, int to, Piece piece);
+void update_castling_rights(Board *b, int from, int to, Piece piece, Piece captured);
+bool king_in_check(const struct Board *b, bool side_to_move);
 bool king_in_check_after_move(int from, int to);
 
 std::string move_to_move_str(Move move);

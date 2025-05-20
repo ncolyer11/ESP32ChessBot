@@ -11,7 +11,7 @@
 Board board;
 
 void init_board() {
-    const char *fen = starting_fen;
+    std::string fen = starting_fen;
     if (MODE) fen = choose_fen();
     load_position_from_fen(fen);
     std::cout << "Board initialised.\n" << std::endl;
@@ -26,7 +26,7 @@ void print_board(bool show_params, bool show_bitboards) {
             Piece piece = board.squares[file_rank_to_square_idx(file, rank)];
 
             // Square color: light (white) or dark (green/blue)
-            const char* bg = is_light_square(file, rank) ? WHITE_BG : GREEN_BG;
+            const char *bg = is_light_square(file, rank) ? WHITE_BG : GREEN_BG;
 
             // Piece emoji (or blank)
             std::cout << bg << get_sprite(piece) << RESET;
@@ -82,7 +82,7 @@ void print_params() {
 }
 
 void print_bitboards() {
-    const char* PIECE_NAMES[12] = {
+    const char *PIECE_NAMES[12] = {
         "wk", "wp", "wn", "wb", "wr", "wq",
         "bk", "bp", "bn", "bb", "br", "bq"
     };
