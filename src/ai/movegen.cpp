@@ -124,18 +124,18 @@ void filter_legal_moves() {
     for (int i = 0; i < move_count; i++) {
         Board temp = board; // copy the global board
         std::string move_str = move_to_move_str(move_list[i]);
-        std::cout << "[filter_legal_moves] Testing move: " << move_str << std::endl;
+        // std::cout << "[filter_legal_moves] Testing move: " << move_str << std::endl;
         make_move_on_board(&temp, move_list[i]);
         // Pass in original side_to_move, as it gets inverted when make_move_on_board is called
         if (!king_in_check(&temp, board.side_to_move)) {
-            std::cout << "[filter_legal_moves] Move is legal: " << move_str << std::endl;
+            // std::cout << "[filter_legal_moves] Move is legal: " << move_str << std::endl;
             legal_move_list[legal_move_count++] = move_list[i];
         } else {
-            std::cout << "[filter_legal_moves] Move is illegal (king in check): " << move_str << std::endl;
+            // std::cout << "[filter_legal_moves] Move is illegal (king in check): " << move_str << std::endl;
         }
-        std::cout << std::endl;
+        // std::cout << std::endl;
     }
-    std::cout << "[filter_legal_moves] Total legal moves: " << legal_move_count << std::endl;
+    // std::cout << "[filter_legal_moves] Total legal moves: " << legal_move_count << std::endl;
 }
 
 // Attack table initialisation, saying at square sq, you have attacks...
@@ -209,7 +209,7 @@ void generate_king_moves() {
 // -- Castling moves (call after king moves) --
 void generate_castling_moves() {
     int king_sq = (friendly_colour() == WHITE) ? 4 : 60;
-    std::cout << "Castling rights: " << std::bitset<4>(board.castling_rights) << std::endl;
+    // std::cout << "Castling rights: " << std::bitset<4>(board.castling_rights) << std::endl;
     // Kingside
     if ((friendly_colour() == WHITE && (board.castling_rights & 0b0001)) ||
         (friendly_colour() == BLACK && (board.castling_rights & 0b0100))) {

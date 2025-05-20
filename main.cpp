@@ -3,8 +3,17 @@
 #include <cstdint>
 #include <ctime>
 #include <iostream>
+#include <limits>
 #include <thread>
 #include <windows.h>
+
+// Undefine problematic macros from windows.h
+#ifdef max
+#undef max
+#endif
+#ifdef min
+#undef min
+#endif
 
 #include "movegen.h" // advanced logic for generating all moves and picking the best one
 #include "fen.h"
@@ -63,6 +72,7 @@ void play() {
     }
     std::cout << "Export final position to FEN? (Y/n): ";
     std::string input;
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // flush remaining newline
     std::getline(std::cin, input);
     if (input.empty() || tolower(input[0]) == 'y') {
         std::cout << "FEN: " << export_position_to_fen() << std::endl;

@@ -26,18 +26,18 @@ constexpr uint8_t COLOUR_MASK = 0b11000; // bits 4 and 5
 constexpr char PIECE_SYMBOLS[] = {'.', 'K', 'P', 'N', 'B', 'R', 'Q'};
 
 // Unicode chess pieces (each ends with a space for consistent width)
+constexpr const char *WHITE_KING   = "♔ ";
 constexpr const char *WHITE_PAWN   = "♙ ";
 constexpr const char *WHITE_KNIGHT = "♘ ";
 constexpr const char *WHITE_BISHOP = "♗ ";
 constexpr const char *WHITE_ROOK   = "♖ ";
 constexpr const char *WHITE_QUEEN  = "♕ ";
-constexpr const char *WHITE_KING   = "♔ ";
+constexpr const char *BLACK_KING   = "♚ ";
 constexpr const char *BLACK_PAWN   = "♟ ";
 constexpr const char *BLACK_KNIGHT = "♞ ";
 constexpr const char *BLACK_BISHOP = "♝ ";
 constexpr const char *BLACK_ROOK   = "♜ ";
 constexpr const char *BLACK_QUEEN  = "♛ ";
-constexpr const char *BLACK_KING   = "♚ ";
 
 // Map piece encoding to sprite
 inline constexpr const char *get_sprite(Piece piece) {

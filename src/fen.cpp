@@ -13,7 +13,7 @@
 #include "util.h"
 
 void parse_and_load_fen_params(const char*rest);
-void parse_and_export_fen_params(std::string fen);
+std::string parse_and_export_fen_params();
 
 
 /**
@@ -66,19 +66,18 @@ void load_position_from_fen(std::string fen) {
  */
 std::string export_position_to_fen() {
     std::string fen;
-    for (int rank = 7; rank >= 0; --rank) {
+    for (int rank = 7; rank >= 0; rank--) {
         int empty_count = 0;
-        for (int file = 0; file < 8; ++file) {
+        for (int file = 0; file < 8; file++) {
             Piece piece = board.squares[rank * 8 + file];
-            if (piece == NONE) {
+            if ((piece & TYPE_MASK) == NONE) {
                 empty_count++;
             } else {
                 if (empty_count > 0) {
                     fen += std::to_string(empty_count);
                     empty_count = 0;
                 }
-                int piece_index = (piece & TYPE_MASK) + (piece & WHITE ? 0 : 6);
-                char symbol = PIECE_SYMBOLS[piece_index];
+                char symbol = PIECE_SYMBOLS[piece & TYPE_MASK];
                 symbol = (piece & BLACK) ? tolower(symbol) : toupper(symbol);
                 fen += symbol;
             }
@@ -88,9 +87,7 @@ std::string export_position_to_fen() {
     }
 
     // Parse and export the FEN parameters
-    parse_and_export_fen_params(fen);
-
-    return fen;
+    return fen + parse_and_export_fen_params();
 }
 
 std::string choose_fen() {
@@ -107,6 +104,7 @@ std::string choose_fen() {
         if (fen == "check") return check_fen;
         if (fen == "coverage") return coverage_fen;
         if (fen == "castle") return castling_fen;
+        if (fen == "checkmate") return checkmate_fen;
     }
 
     if (std::regex_match(fen, fen_regex)) return fen;
@@ -163,9 +161,11 @@ void parse_and_load_fen_params(const char *rest) {
     board.full_moves = atoi(rest);
 }
 
-void parse_and_export_fen_params(std::string fen) {
+std::string parse_and_export_fen_params() {
+    std::string fen_params;
+
     // Side to move
-    fen += (board.side_to_move == 0) ? " w " : " b ";
+    fen_params += (board.side_to_move == 0) ? " w " : " b ";
 
     // Castling rights
     std::string castling;
@@ -174,20 +174,22 @@ void parse_and_export_fen_params(std::string fen) {
     if (board.castling_rights & 0b0010) castling += 'k';
     if (board.castling_rights & 0b0001) castling += 'q';
     if (castling.empty()) castling = "-";
-    fen += castling + " ";
+    fen_params += castling + " ";
 
     // En passant
     if (board.enpassant_square < 64) {
-        fen += square_idx_to_alg(board.enpassant_square);
+        fen_params += square_idx_to_alg(board.enpassant_square);
     } else {
-        fen += "-";
+        fen_params += "-";
     }
-    fen += " ";
+    fen_params += " ";
 
     // Halfmove clock
-    fen += std::to_string(board.half_move_clock);
-    fen += " ";
+    fen_params += std::to_string(board.half_move_clock);
+    fen_params += " ";
 
     // Fullmove number
-    fen += std::to_string(board.full_moves);
+    fen_params += std::to_string(board.full_moves);
+
+    return fen_params;
 }
