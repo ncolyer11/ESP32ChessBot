@@ -30,7 +30,7 @@ bool make_move_on_board(Board *b, Move move) {
     Piece piece = b->squares[from];
     Piece captured = b->squares[to];
     if (flag >= 3 && flag <= 6) {
-        apply_promotion_move(b, from, to, piece, flag);
+        apply_promotion_move(b, from, to, piece, captured, flag);
     } else if (flag == 1) {
         apply_en_passant_move(b, from, to, piece);
     } else if (flag == 2) {
@@ -69,7 +69,7 @@ void apply_normal_move(Board *b, int from, int to, Piece piece, Piece captured) 
     }
 }
 
-void apply_promotion_move(Board *b, int from, int to, Piece piece, int flag) {
+void apply_promotion_move(Board *b, int from, int to, Piece piece, Piece captured, int flag) {
     Piece promo = 0;
     switch (flag) {
         case 3: promo = QUEEN; break;
@@ -82,6 +82,10 @@ void apply_promotion_move(Board *b, int from, int to, Piece piece, int flag) {
     b->squares[from] = NONE;
     b->bitboards[piece_to_bitboard_idx(piece)] ^= (1ULL << from);
     b->bitboards[piece_to_bitboard_idx(promo)] |= (1ULL << to);
+    // Check if pawn captured whilst promoting
+    if (captured != NONE) {
+        b->bitboards[piece_to_bitboard_idx(captured)] ^= (1ULL << to);
+    }
 }
 
 void apply_en_passant_move(Board *b, int from, int to, Piece piece) {

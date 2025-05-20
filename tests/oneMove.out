@@ -1,18 +1,17 @@
 Enter 'test' to activate TEST MODE: TEST MODE ACTIVATED
 Chess engine starting...
-Is player 1 human? (Y/n): Is player 2 human? (Y/n): Enter a starting position (FEN or @custom_name): Read: default
-Invalid FEN format. Using default starting position.
+Is player 1 human? (Y/n): Is player 2 human? (Y/n): Enter a starting position (FEN or @custom_name): Read: @default
 Loading position from FEN: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 Board initialised.
 
-8 rnbqkbnr
-7 pppppppp
-6 ........
-5 ........
-4 ........
-3 ........
-2 PPPPPPPP
-1 RNBQKBNR
+8 r n b q k b n r 
+7 p p p p p p p p 
+6 . . . . . . . . 
+5 . . . . . . . . 
+4 . . . . . . . . 
+3 . . . . . . . . 
+2 P P P P P P P P 
+1 R N B Q K B N R 
   a b c d e f g h 
 
 Params: w KQkq - 0 1
@@ -30,14 +29,14 @@ bb: 0010010000000000000000000000000000000000000000000000000000000000
 br: 1000000100000000000000000000000000000000000000000000000000000000
 bq: 0000100000000000000000000000000000000000000000000000000000000000
 
-White to move: 8 rnbqkbnr
-7 pppppppp
-6 ........
-5 ........
-4 ....P...
-3 ........
-2 PPPP.PPP
-1 RNBQKBNR
+White to move: 8 r n b q k b n r 
+7 p p p p p p p p 
+6 . . . . . . . . 
+5 . . . . . . . . 
+4 . . . . P . . . 
+3 . . . . . . . . 
+2 P P P P . P P P 
+1 R N B Q K B N R 
   a b c d e f g h 
 
 Params: b KQkq e3 0 2

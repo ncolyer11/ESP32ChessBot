@@ -28,7 +28,7 @@ void print_board(bool show_params, bool show_bitboards) {
             if (MODE) {
                 char symbol = PIECE_SYMBOLS[piece & TYPE_MASK];
                 symbol = (piece & BLACK) ? tolower(symbol) : toupper(symbol);
-                std::cout << symbol;
+                std::cout << symbol << " ";
                 continue;
             }
             
