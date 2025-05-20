@@ -1,19 +1,8 @@
 #include <chrono>
-#include <conio.h>
 #include <cstdint>
 #include <ctime>
 #include <iostream>
-#include <limits>
 #include <thread>
-#include <windows.h>
-
-// Undefine problematic macros from windows.h
-#ifdef max
-#undef max
-#endif
-#ifdef min
-#undef min
-#endif
 
 #include "movegen.h" // advanced logic for generating all moves and picking the best one
 #include "fen.h"
@@ -70,29 +59,16 @@ void play() {
         //     std::this_thread::sleep_for(std::chrono::milliseconds(100));
         // }
     }
-    std::cout << "Export final position to FEN? (Y/n): ";
-    std::string input;
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // flush remaining newline
-    std::getline(std::cin, input);
-    if (input.empty() || tolower(input[0]) == 'y') {
-        std::cout << "FEN: " << export_position_to_fen() << std::endl;
-    }
+    ask_export_fen();
 }
 
 void check_for_test_mode() {
-    int elapsed = 0;
-    const int step = 5; // ms
-    while (elapsed < 5000) {
-        if (_kbhit()) {
-            std::string input;
-            std::getline(std::cin, input);
-            if (input == "test") {
-                MODE = true;
-                std::cout << "TEST MODE ACTIVATED\n";
-            }
-            break;
-        }
-        Sleep(step);
-        elapsed += step;
+    std::string input;
+    std::cout << "Enter 'test' to activate TEST MODE: " << std::flush;
+    if (!std::getline(std::cin, input)) return;
+    normalise_line(input);
+    if (input == "test") {
+        MODE = true;
+        std::cout << "TEST MODE ACTIVATED\n";
     }
 }

@@ -66,3 +66,13 @@ int bit_scan_forward(U64 bitboard) {
    return index64[((bitboard & -bitboard) * 0x03f79d71b4cb0a89ULL) >> 58];
 }
 
+// strip UTF-8 BOM (0xEF,0xBB,0xBF) and trailing '\r'
+void normalise_line(std::string &s) {
+    if (s.size() >= 3
+     && (unsigned char)s[0] == 0xEF
+     && (unsigned char)s[1] == 0xBB
+     && (unsigned char)s[2] == 0xBF)
+        s.erase(0, 3);
+    if (!s.empty() && s.back() == '\r')
+        s.pop_back();
+}

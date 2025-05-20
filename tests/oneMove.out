@@ -1,17 +1,21 @@
+Enter 'test' to activate TEST MODE: TEST MODE ACTIVATED
 Chess engine starting...
-Is player 1 human? (Y/n): Is player 2 human? (Y/n): Board initialised.
-8 r n b q k b n r 
-7 p p p p p p p p 
-6 . . . . . . . . 
-5 . . . . . . . . 
-4 . . . . . . . . 
-3 . . . . . . . . 
-2 P P P P P P P P 
-1 R N B Q K B N R 
-  a b c d e f g h
+Is player 1 human? (Y/n): Is player 2 human? (Y/n): Enter a starting position (FEN or @custom_name): Read: default
+Invalid FEN format. Using default starting position.
+Loading position from FEN: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+Board initialised.
+
+8 rnbqkbnr
+7 pppppppp
+6 ........
+5 ........
+4 ........
+3 ........
+2 PPPPPPPP
+1 RNBQKBNR
+  a b c d e f g h 
 
 Params: w KQkq - 0 1
-
 Bitboards:
 wk: 0000000000000000000000000000000000000000000000000000000000010000
 wp: 0000000000000000000000000000000000000000000000001111111100000000
@@ -25,18 +29,18 @@ bn: 0100001000000000000000000000000000000000000000000000000000000000
 bb: 0010010000000000000000000000000000000000000000000000000000000000
 br: 1000000100000000000000000000000000000000000000000000000000000000
 bq: 0000100000000000000000000000000000000000000000000000000000000000
-White to move: 8 r n b q k b n r 
-7 p p p p p p p p 
-6 . . . . . . . . 
-5 . . . . . . . . 
-4 . . . . P . . . 
-3 . . . . . . . . 
-2 P P P P . P P P 
-1 R N B Q K B N R 
-  a b c d e f g h
 
-Params: b KQkq - 0 1
+White to move: 8 rnbqkbnr
+7 pppppppp
+6 ........
+5 ........
+4 ....P...
+3 ........
+2 PPPP.PPP
+1 RNBQKBNR
+  a b c d e f g h 
 
+Params: b KQkq e3 0 2
 Bitboards:
 wk: 0000000000000000000000000000000000000000000000000000000000010000
 wp: 0000000000000000000000000000000000010000000000001110111100000000
@@ -50,4 +54,6 @@ bn: 0100001000000000000000000000000000000000000000000000000000000000
 bb: 0010010000000000000000000000000000000000000000000000000000000000
 br: 1000000100000000000000000000000000000000000000000000000000000000
 bq: 0000100000000000000000000000000000000000000000000000000000000000
+
 Black to move: Game ended prematurely by user.
+Export final position to FEN? (Y/n): FEN: rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 2

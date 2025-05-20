@@ -113,7 +113,15 @@ std::string choose_fen() {
     return starting_fen;
 }
 
-
+void ask_export_fen() {
+    std::cout << "Export final position to FEN? (Y/n): ";
+    std::string input;
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // flush remaining newline
+    std::getline(std::cin, input);
+    if (input.empty() || tolower(input[0]) == 'y') {
+        std::cout << "FEN: " << export_position_to_fen() << std::endl;
+    }
+}
 
 // After parsing board layout, parse rest of FEN:
 void parse_and_load_fen_params(const char *rest) {

@@ -6,7 +6,7 @@
 void load_position_from_fen(std::string);
 std::string export_position_to_fen();
 std::string choose_fen();
-
+void ask_export_fen();
 
 static const std::string starting_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 static const std::string check_fen = "4k3/8/2p5/2P5/8/2b5/1N3P2/K6N w - - 0 1";
