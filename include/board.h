@@ -18,8 +18,6 @@ struct Board {
 
 extern Board board;
 
-static constexpr char STARTING_FEN[] = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-
 void init_board();
 void print_board(bool show_params = false, bool show_bitboards = false);
 void print_params();

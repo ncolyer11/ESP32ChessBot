@@ -179,24 +179,28 @@ bool king_in_check(const Board* b, bool side_to_move) {
     for (int dir = 0; dir < 8; dir++) {
         int new_sq = king_sq;
         while (true) {
+            int file_before = new_sq % 8;
             new_sq += dirs[dir];
-            if (new_sq < 0 || new_sq >= 64 || abs((new_sq % 8) - (king_sq % 8)) > 2) break;
+            if (new_sq < 0 || new_sq >= 64) break;
+            int file_after = new_sq % 8;
+            if (abs(file_after - file_before) > 1) break;
+
             Piece target = b->squares[new_sq];
             if (target == NONE) continue;
-            // Has found piece so will need to break after is it'll be blocking or attacking
             uint8_t opp_color = side_to_move ? WHITE : BLACK;
+            int type = target & TYPE_MASK;
+            const char* attacking_piece = nullptr;
             if ((target & COLOUR_MASK) == opp_color) {
-                int type = target & TYPE_MASK;
-                const char *attacking_piece;
                 if (type == QUEEN) attacking_piece = "queen";
                 else if (type == ROOK && dir < 4) attacking_piece = "rook";
                 else if (type == BISHOP && dir >= 4) attacking_piece = "bishop";
-                else break;
-                (void)attacking_piece;
-                // std::cout << "[king_in_check] King at " << square_idx_to_alg(king_sq)
-                //             << " is attacked by " << attacking_piece
-                //             << " at " << square_idx_to_alg(new_sq) << std::endl;
-                return true;
+                if (attacking_piece) {
+                    (void)attacking_piece;
+                    // std::cout << "[king_in_check] King at " << square_idx_to_alg(king_sq)
+                    //         << " is attacked by " << attacking_piece
+                    //         << " at " << square_idx_to_alg(new_sq) << std::endl;
+                    return true;
+                }
             }
             break;
         }

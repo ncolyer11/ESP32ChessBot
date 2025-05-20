@@ -5,6 +5,7 @@
 #include "piece.h"
 #include "util.h"
 
+bool MODE = false;
 bool player1_is_human = true;
 bool player2_is_human = true;
 bool player_types[2] = {player1_is_human, player2_is_human};

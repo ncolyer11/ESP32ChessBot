@@ -11,9 +11,9 @@
 Board board;
 
 void init_board() {
-    // constexpr char check_fen[] = "4k3/8/2p5/2P5/8/2b5/1N3P2/K6N w - - 0 1";
-    // constexpr char stalemate_fen[] = "7k/2p5/5N2/2P5/8/5R2/1N3P2/K7 b - - 0 1";
-    load_position_from_fen(STARTING_FEN);
+    const char *fen = starting_fen;
+    if (MODE) fen = choose_fen();
+    load_position_from_fen(fen);
     std::cout << "Board initialised.\n" << std::endl;
 }
 

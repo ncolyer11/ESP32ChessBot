@@ -6,11 +6,12 @@
 
 #include "piece.h"
 
+typedef uint64_t U64;
+
+extern bool MODE; // false = play, true = testing
 extern bool player1_is_human;
 extern bool player2_is_human;
 extern bool player_types[2];
-
-typedef uint64_t U64;
 
 constexpr const char* RESET    = "\033[0m";
 constexpr const char* DIM      = "\033[2m";

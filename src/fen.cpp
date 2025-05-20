@@ -2,6 +2,7 @@
 #include <cstring>
 #include <cctype>
 #include <iostream>
+#include <regex>
 #include <string>
 
 #include "board.h"
@@ -90,6 +91,32 @@ std::string export_position_to_fen() {
 
     return fen;
 }
+
+const char *choose_fen() {
+    std::string fen;
+    std::cout << "Enter a starting position (FEN or [custom_name]): ";
+    std::cin >> fen;
+    if (!fen.empty() && fen.front() == '[' && fen.back() == ']') {
+        fen = fen.substr(1, fen.length() - 2);
+        if (fen.empty()) return starting_fen;
+
+        if (fen == "default") return starting_fen;
+        if (fen == "queens") return queens_fen;
+        if (fen == "stalemate") return stalemate_fen;
+        if (fen == "check") return check_fen;
+        if (fen == "coverage") return coverage_fen;
+    }
+
+    // Basic FEN regex: 6 space-separated fields, first field = at least 8 chars (for pieces/ranks)
+    static const std::regex fen_regex(
+        R"(([rnbqkpRNBQKP1-8]+\/){7}[rnbqkpRNBQKP1-8]+ [wb] (K?Q?k?q?|-) (-|[a-h][36]) \d+ \d+)"
+    );
+    if (std::regex_match(fen, fen_regex)) return fen.c_str();
+
+    return starting_fen;
+}
+
+
 
 // After parsing board layout, parse rest of FEN:
 void parse_and_load_fen_params(const char* rest) {

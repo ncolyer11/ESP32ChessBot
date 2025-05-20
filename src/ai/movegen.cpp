@@ -71,7 +71,7 @@ Move get_next_bot_move() {
     filter_legal_moves();
 
     if (legal_move_count == 0) {
-        std::cout << "Chesp32 (" << (board.side_to_move == 0 ? "White" : "Black") << ") has no legal moves." << std::endl;
+        // std::cout << "Chesp32 (" << (board.side_to_move == 0 ? "White" : "Black") << ") has no legal moves." << std::endl;
         return NO_MOVES;
     } else if (board.half_move_clock > 50) {
         return NO_MOVES;
@@ -88,24 +88,9 @@ Move get_next_bot_move() {
     int idx = random % legal_move_count;
     Move chosen_move = legal_move_list[idx];
 
-    int flag = move_flag(chosen_move);
-
     std::string move_str = move_to_move_str(chosen_move);
-    // Add promotion char if needed
-    if (flag >= 3 && flag <= 6) {
-        char promo_char;
-        switch (flag) {
-            case 3: promo_char = 'q'; break;
-            case 4: promo_char = 'n'; break;
-            case 5: promo_char = 'r'; break;
-            case 6: promo_char = 'b'; break;
-            default: promo_char = '?'; break;
-        }
-        move_str += promo_char;
-    }
-
     std::string colour_to_move = (board.side_to_move == 0 ? "White" : "Black");
-    std::cout << "Chesp32 (" << colour_to_move << ") plays: " << move_str << std::endl;
+    // std::cout << "Chesp32 (" << colour_to_move << ") plays: " << move_str << std::endl;
     return chosen_move;
 }
 
@@ -219,10 +204,15 @@ void generate_king_moves() {
         }
     }
     if (king_sq == -1) return;
+
     uint64_t king_targets = king_attacks[king_sq];
-    for (int t = 0; t < 64; t++)
-        if ((king_targets & (1ULL << t)) && !is_friendly(board.squares[t]))
+    for (int t = 0; t < 64; t++) {
+        if ((king_targets & (1ULL << t)) && 
+            (!is_friendly(board.squares[t]) || board.squares[t] == NONE)) {
+
             add_move(king_sq, t, 0);
+        }
+    }
 }
 
 // -- Castling moves (call after king moves) --
@@ -322,6 +312,9 @@ void generate_pawn_moves() {
         }
         // Captures
         for (int df = -1; df <= 1; df += 2) {
+            int file = sq_idx % 8;
+            int cap_file = file + df;
+            if (cap_file < 0 || cap_file > 7) continue;  // Add this check!
             int cap = sq_idx + direction + df;
             if (cap < 0 || cap >= 64) continue;
             if (board.squares[cap] != NONE && is_opponent(board.squares[cap])) {
@@ -335,8 +328,10 @@ void generate_pawn_moves() {
         }
         // En passant
         if (board.enpassant_square < 64) {
+            int file = sq_idx % 8;
             for (int df = -1; df <= 1; df += 2) {
-                if (sq_idx % 8 + df < 0 || sq_idx % 8 + df > 7) continue;
+                int cap_file = file + df;
+                if (cap_file < 0 || cap_file > 7) continue;
                 int cap = sq_idx + direction + df;
                 if (cap == board.enpassant_square) {
                     add_move(sq_idx, cap, 1);
