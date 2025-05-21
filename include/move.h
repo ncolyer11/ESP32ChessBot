@@ -8,6 +8,14 @@
 // Move encoding: bits 0-5: from, bits 6-11: to, bits 12-15: flag
 typedef uint16_t Move;
 
+// Maximum possible moves in any chess position
+constexpr int MAX_MOVES = 218;
+
+struct MoveList {
+    Move moves[MAX_MOVES];
+    int count;
+};
+
 constexpr const int ENPASSANT_FLAG = 1;
 constexpr const int CASTLING_FLAG = 2;
 constexpr const int PROMOTION_FLAG = 3;
@@ -45,8 +53,6 @@ static inline bool is_opponent(Board *b, Piece piece) {
     return (piece & COLOUR_MASK) == opponent_colour(b);
 }
 
-
-bool is_valid_move(Move *move);
 
 // Updating board with moves
 bool make_move_on_board(Board *b, Move move);

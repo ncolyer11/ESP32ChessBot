@@ -12,8 +12,10 @@
 // https://lichess.org/editor
 // chcp 65001 to fix unicode in cmd
 
+constexpr int DEPTH = 1; // depth for the bot to search
+
 void play(Board *b);
-Move get_next_bot_move(Board *b); // this shouldn't be needed but it removes squiggly lines
+Move get_next_bot_move(Board *b, int depth); // this shouldn't be needed but it removes squiggly lines
 
 int main() {
     check_for_test_mode();
@@ -44,16 +46,14 @@ void play(Board *b) {
         // Return if either king is missing
         if (!b->bitboards[0] || !b->bitboards[6]) return;
 
-        Move move = player_types[b->side_to_move] ? get_next_player_move(b) : get_next_bot_move(b);
+        Move move = player_types[b->side_to_move] ? get_next_player_move(b) 
+                                                  : get_next_bot_move(b, DEPTH);
 
         // Exit on error or ctrl + d
         if (move == INVALID_MOVE) break;
 
-        // Exit on end of game and print checkmate or stalemate message
-        if (move == NO_MOVES) {
-            check_end_game_conditions(b, legal_move_count);
-            break;
-        }
+        // Exit on end of game
+        if (move == NO_MOVES) break;
 
         // Exit on invalid move, also switches players
         if (!make_move_on_board(b, move)) break;

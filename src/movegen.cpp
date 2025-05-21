@@ -11,22 +11,18 @@
 #include "search.h"
 #include "util.h"
 
-// Output arrays
-Move move_list[MAX_MOVES];
-int move_count = 0;
-Move legal_move_list[MAX_MOVES];
-int legal_move_count = 0;
-
 // Precomputed attack bitboards
 uint64_t pawn_attacks[2][64];
 uint64_t knight_attacks[64];
 uint64_t king_attacks[64];
 
-Move gen_and_validate_all_moves(Board *b);
+Move gen_and_validate_all_moves(Board *b, MoveList *legal_move_list);
 
 // Request next move from the current player
 Move get_next_player_move(Board *b) {
-    if (gen_and_validate_all_moves(b) == NO_MOVES) return NO_MOVES;
+    // Check if the player has any available moves
+    MoveList legal_move_list = { {}, 0 };
+    if (gen_and_validate_all_moves(b, &legal_move_list) == NO_MOVES) return NO_MOVES;
 
     Move move;
     do {
@@ -37,15 +33,15 @@ Move get_next_player_move(Board *b) {
             return INVALID_MOVE;
         }
         move = move_str_to_move(move_str);
-    } while (!is_valid_move(&move));
+    } while (!is_valid_move(&move, legal_move_list));
 
     return move;
 }
 
-bool is_valid_move(Move *move) {
-    for (int i = 0; i < legal_move_count; ++i) {
+bool is_valid_move(Move *move, MoveList legal_move_list) {
+    for (int i = 0; i < legal_move_list.count; ++i) {
         int flag = move_flag(*move);
-        Move legal_move = legal_move_list[i];
+        Move legal_move = legal_move_list.moves[i];
         // std::cout << "[DEBUG] Checking legal_move: " << move_to_move_str(legal_move) << std::endl;
         // std::cout << "[DEBUG] Input move: " << move_to_move_str(*move) << ", flag: " << flag << std::endl;
         if (!(flag >= 3 && flag <= 6)) legal_move &= 0x0FFF; // clear the last 4 bits/flag
@@ -53,7 +49,7 @@ bool is_valid_move(Move *move) {
         if (*move == legal_move) {
             // std::cout << "[DEBUG] Move matched. Updating move to: " 
                     //   << move_to_move_str(legal_move_list[i]) << std::endl;
-            *move = legal_move_list[i]; // update move with flags
+            *move = legal_move_list.moves[i]; // update move with flags
             return true;
         }
     }
@@ -76,49 +72,48 @@ bool is_valid_move(Move *move) {
  * Usage:
  *   Call generate_moves() before move selection or perft, and after making any board changes.
  */
-void generate_moves(Board *b) {
+void generate_moves(Board *b, MoveList *legal_move_list) {
     // reset move count and both move and legal move lists
-    move_count = 0;
+    MoveList move_list = { {}, 0 };
     
-    generate_king_moves(b);
-    generate_castling_moves(b);
-    generate_sliding_moves(b); // Queen, rook, bishop
-    generate_knight_moves(b);
-    generate_pawn_moves(b);
+    generate_king_moves(b, &move_list);
+    generate_castling_moves(b, &move_list);
+    generate_sliding_moves(b, &move_list); // Queen, rook, bishop
+    generate_knight_moves(b, &move_list);
+    generate_pawn_moves(b, &move_list);
+
+    filter_legal_moves(b, move_list, legal_move_list);
 }
 
 // -- Legal move filtering --
 // Writes all legal moves from the global move_list/move_count into legal_move_list/legal_move_count
-void filter_legal_moves(Board *b) {
+void filter_legal_moves(Board *b, MoveList move_list, MoveList *legal_move_list) {
     bool debug = 0;
-    legal_move_count = 0;
-    for (int i = 0; i < move_count; i++) {
-        Board temp = *b;
-        std::string move_str = move_to_move_str(move_list[i]);
+    legal_move_list->count = 0;
+    for (int i = 0; i < move_list.count; i++) {
+        std::string move_str = move_to_move_str(move_list.moves[i]);
         if (debug) std::cout << "[filter_legal_moves] Testing move: " << move_str << std::endl;
-        make_move_on_board(&temp, move_list[i]);
-        temp.side_to_move ^= 1; // Switch back as it gets inverted in make_move_on_board
-        if (!king_in_check(&temp)) {
+        
+        // Board temp = *b;
+        // make_move_on_board(&temp, move_list.moves[i]);
+        make_move_on_board(b, move_list.moves[i]);
+        b->side_to_move ^= 1; // Switch back as it gets inverted in make_move_on_board
+        bool in_check = king_in_check(b);
+        b->side_to_move ^= 1; // Switch back as it gets inverted in make_move_on_board
+        unmake_move_on_board(b, move_list.moves[i]);
+        if (!in_check) {
+            legal_move_list->moves[legal_move_list->count++] = move_list.moves[i];
+        }
+
+        if (!in_check) {
             if (debug) std::cout << "[filter_legal_moves] Move is legal: " << move_str << std::endl;
-            legal_move_list[legal_move_count++] = move_list[i];
         } else {
             if (debug) std::cout << "[filter_legal_moves] Move is illegal (king in check): " << move_str << std::endl;
         }
         if (debug) std::cout << std::endl;
     }
-    if (debug) std::cout << "[filter_legal_moves] Total legal moves: " << legal_move_count << std::endl;
-}
-
-// Returns a heap-allocated copy of the current legal move list and its count.
-// Caller is responsible for deleting the returned moves array.
-MoveList generate_moves_arr(Board *b) {
-    generate_moves(b);
-    filter_legal_moves(b);
-    MoveList result;
-    result.count = legal_move_count;
-    result.moves = new Move[legal_move_count];
-    std::memcpy(result.moves, legal_move_list, legal_move_count * sizeof(Move));
-    return result;
+    if (debug) std::cout << "[filter_legal_moves] Total legal moves: "
+                         << legal_move_list->count << std::endl;
 }
 
 // Attack table initialisation, saying at square sq, you have attacks...
@@ -167,7 +162,7 @@ void init_attack_bitboards() {
 }
 
 // -- King moves (not castling) --
-void generate_king_moves(Board *b) {
+void generate_king_moves(Board *b, MoveList *move_list) {
     int king_sq = -1;
     Piece king_piece = KING | friendly_colour(b);
     // TODO: use the magic lookup de bruj shit instead here
@@ -184,13 +179,13 @@ void generate_king_moves(Board *b) {
         if ((king_targets & (1ULL << t)) && 
             (!is_friendly(b, b->squares[t]) || b->squares[t] == NONE)) {
 
-            add_move(king_sq, t, 0);
+            add_move(move_list, king_sq, t, 0);
         }
     }
 }
 
 // -- Castling moves (call after king moves) --
-void generate_castling_moves(Board *b) {
+void generate_castling_moves(Board *b, MoveList *move_list) {
     int king_sq = (friendly_colour(b) == WHITE) ? 4 : 60;
     // std::cout << "Castling rights: " << std::bitset<4>(b->castling_rights) << std::endl;
     // Kingside
@@ -203,7 +198,7 @@ void generate_castling_moves(Board *b) {
             !king_in_check(b) &&
             !king_in_check_after_move(b, king_sq, f) &&
             !king_in_check_after_move(b, king_sq, g)) {
-            add_move(king_sq, g, CASTLING_FLAG);
+            add_move(move_list, king_sq, g, CASTLING_FLAG);
         }
     }
 
@@ -218,13 +213,13 @@ void generate_castling_moves(Board *b) {
             !king_in_check(b) &&
             !king_in_check_after_move(b, king_sq, d) &&
             !king_in_check_after_move(b, king_sq, c)) {
-            add_move(king_sq, c, CASTLING_FLAG);
+            add_move(move_list, king_sq, c, CASTLING_FLAG);
         }
     }
 }
 
 // -- Sliding piece moves (rooks, bishops, queens) --
-void generate_sliding_moves(Board *b) {
+void generate_sliding_moves(Board *b, MoveList *move_list) {
     static const int directions[8] = {1, -1, 8, -8, 9, -9, 7, -7};
     for (int i = 0; i < 64; i++) {
         Piece p = b->squares[i];
@@ -240,7 +235,7 @@ void generate_sliding_moves(Board *b) {
                 if (next < 0 || next >= 64 || abs((n % 8) - (next % 8)) > 2) break;
                 Piece target = b->squares[next];
                 if (is_friendly(b, target)) break;
-                add_move(i, next, 0);
+                add_move(move_list, i, next, 0);
                 if (target != NONE) break;
                 n = next;
             }
@@ -249,18 +244,18 @@ void generate_sliding_moves(Board *b) {
 }
 
 // -- Knight moves --
-void generate_knight_moves(Board *b) {
+void generate_knight_moves(Board *b, MoveList *move_list) {
     for (int i = 0; i < 64; i++) {
         if (b->squares[i] != (KNIGHT | friendly_colour(b))) continue;
         uint64_t attacks = knight_attacks[i];
         for (int t = 0; t < 64; t++)
             if ((attacks & (1ULL << t)) && !is_friendly(b, b->squares[t]))
-                add_move(i, t, 0);
+                add_move(move_list, i, t, 0);
     }
 }
 
 // -- Pawn moves (single, double, capture, en passant, promotion) --
-void generate_pawn_moves(Board *b) {
+void generate_pawn_moves(Board *b, MoveList *move_list) {
     int direction = b->side_to_move ? -8 : 8;
     int start_rank = b->side_to_move ? 6 : 1;
     int promotion_rank = b->side_to_move ? 0 : 7;
@@ -273,19 +268,19 @@ void generate_pawn_moves(Board *b) {
         if (to >= 0 && to < 64 && b->squares[to] == NONE) {
             if (to / 8 == promotion_rank) {
                 // Add the 4 different possible promotion moves
-                add_move(sq_idx, to, PROMOTION_QUEEN_FLAG); 
-                add_move(sq_idx, to, PROMOTION_KNIGHT_FLAG);
-                add_move(sq_idx, to, PROMOTION_ROOK_FLAG); 
-                add_move(sq_idx, to, PROMOTION_BISHOP_FLAG);
+                add_move(move_list, sq_idx, to, PROMOTION_QUEEN_FLAG); 
+                add_move(move_list, sq_idx, to, PROMOTION_KNIGHT_FLAG);
+                add_move(move_list, sq_idx, to, PROMOTION_ROOK_FLAG); 
+                add_move(move_list, sq_idx, to, PROMOTION_BISHOP_FLAG);
             } else {
                 // Else it can't promote but still check if it can double push
-                add_move(sq_idx, to, 0);
+                add_move(move_list, sq_idx, to, 0);
                 // std::cout << "Pawn single push from " << sq_idx << " to " << to << std::endl;
                 // Double push from start
                 if (sq_idx / 8 == start_rank) {
                     int dbl = sq_idx + 2 * direction;
                     if (b->squares[dbl] == NONE) {
-                        add_move(sq_idx, dbl, DOUBLE_PAWN_FLAG);
+                        add_move(move_list, sq_idx, dbl, DOUBLE_PAWN_FLAG);
                         // std::cout << "Pawn double push from " << sq_idx << " to " << dbl << std::endl;
                     }
                 }
@@ -300,12 +295,12 @@ void generate_pawn_moves(Board *b) {
             if (cap < 0 || cap >= 64) continue;
             if (b->squares[cap] != NONE && is_opponent(b, b->squares[cap])) {
                 if (cap / 8 == promotion_rank) {
-                    add_move(sq_idx, cap, PROMOTION_QUEEN_FLAG); 
-                    add_move(sq_idx, cap, PROMOTION_KNIGHT_FLAG);
-                    add_move(sq_idx, cap, PROMOTION_ROOK_FLAG); 
-                    add_move(sq_idx, cap, PROMOTION_BISHOP_FLAG);
+                    add_move(move_list, sq_idx, cap, PROMOTION_QUEEN_FLAG); 
+                    add_move(move_list, sq_idx, cap, PROMOTION_KNIGHT_FLAG);
+                    add_move(move_list, sq_idx, cap, PROMOTION_ROOK_FLAG); 
+                    add_move(move_list, sq_idx, cap, PROMOTION_BISHOP_FLAG);
                 } else {
-                    add_move(sq_idx, cap, 0);
+                    add_move(move_list, sq_idx, cap, 0);
                 }
             }
         }
@@ -319,7 +314,7 @@ void generate_pawn_moves(Board *b) {
                 if (cap == b->enpassant_square) {
                     // std::cout << "[DEBUG] En passant possible: pawn from " 
                             //   << sq_idx << " to " << cap << std::endl;
-                    add_move(sq_idx, cap, ENPASSANT_FLAG);
+                    add_move(move_list, sq_idx, cap, ENPASSANT_FLAG);
                 }
             }
         }
@@ -335,6 +330,7 @@ bool king_in_check_after_move(Board *b, int from, int to) {
     return in_check;
 }
 
+// Check if the game is over from the current board state
 bool check_end_game_conditions(Board *b, int legal_moves_count) {
     bool is_king_in_check = king_in_check(b);
     if (is_checkmate(legal_moves_count, is_king_in_check)) {
@@ -375,17 +371,9 @@ bool is_stalemate(int legal_moves_count, bool is_king_in_check) {
     return (legal_moves_count == 0) && !is_king_in_check;
 }
 
-Move gen_and_validate_all_moves(Board *b) {
-    generate_moves(b);
-    filter_legal_moves(b);
+Move gen_and_validate_all_moves(Board *b, MoveList *legal_move_list) {
+    generate_moves(b, legal_move_list);
+    if (!check_end_game_conditions(b, legal_move_list->count)) return NO_MOVES;
 
-    if (legal_move_count == 0) {
-        std::cout << "Chesp32 (" << (b->side_to_move == 0 ? "White" : "Black") << ") has no legal moves." << std::endl;
-        return NO_MOVES;
-    } else if (b->half_move_clock > 50) {
-        // Error message printed in check_end_game_conditions()
-        return NO_MOVES;
-    }
-
-    return 1;
+    return true; // indicates available moves
 }

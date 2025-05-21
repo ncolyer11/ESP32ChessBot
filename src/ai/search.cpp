@@ -9,7 +9,7 @@ void sort_moves(Board *b, MoveList* move_list);
 Move find_best_move(Board *b, int depth);
 
 // infinities
-constexpr int pos_infinity =  10000000;
+constexpr int pos_infinity = 10000000;
 constexpr int neg_infinity = -pos_infinity;
 
 /**
@@ -29,8 +29,8 @@ constexpr int neg_infinity = -pos_infinity;
  * Usage:
  *   Call after generate_moves() and filter_legal_moves() to pick a random move.
  */
-Move get_next_bot_move(Board *b) {
-    Move chosen_move = find_best_move(b, 3);
+Move get_next_bot_move(Board *b, int depth) {
+    Move chosen_move = find_best_move(b, depth);
     std::string move_str = move_to_move_str(chosen_move);
     std::string colour_to_move = (b->side_to_move == 0 ? "White" : "Black");
     std::cout << "Chesp32 (" << colour_to_move << ") plays: " << move_str << std::endl;
@@ -46,7 +46,8 @@ Move random_search(const Move* legal_move_list, int legal_move_count) {
 }
 
 Move find_best_move(Board *b, int depth) {
-    MoveList move_list = generate_moves_arr(b);
+    MoveList move_list = { {}, 0 };
+    generate_moves(b, &move_list);
     std::cout << "Moves before sorting:" << std::endl;
     for (int i = 0; i < move_list.count; ++i) {
         std::cout << move_to_move_str(move_list.moves[i]) << " ";
@@ -93,7 +94,8 @@ int search(Board *b, int depth, int alpha, int beta) {
         return evaluate(b);
     }
 
-    MoveList move_list = generate_moves_arr(b);
+    MoveList move_list;
+    generate_moves(b, &move_list);
     std::cout << "Move count: " << move_list.count << std::endl;
 
     if (move_list.count == 0) {
