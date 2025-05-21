@@ -39,6 +39,7 @@ bool is_valid_move(Move *move);
 
 // Updating board with moves
 bool make_move_on_board(struct Board *b, Move move);
+void unmake_move_on_board(Board *b, Move move);
 void apply_normal_move(Board *b, int from, int to, Piece piece, Piece captured);
 void apply_promotion_move(Board *b, int from, int to, Piece piece, Piece captured, int flag);
 void apply_en_passant_move(Board *b, int from, int to, Piece piece);

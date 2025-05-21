@@ -24,7 +24,7 @@ void get_player_types() {
 }
 
 // Converts the 5 bits of a piece into its index (0-11) in the bitboard array
-Piece piece_to_bitboard_idx(Piece piece) {
+int piece_to_bitboard_idx(Piece piece) {
     return (piece & TYPE_MASK) + (piece & WHITE ? 0 : 6) - 1;
 }
 

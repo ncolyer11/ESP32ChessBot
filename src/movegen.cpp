@@ -8,6 +8,7 @@
 #include "move.h"
 #include "movegen.h"
 #include "piece.h"
+#include "search.h"
 #include "util.h"
 
 // Output arrays
@@ -41,44 +42,6 @@ Move get_next_player_move() {
     return move;
 }
 
-/**
- * @brief Generates all legal moves for the current board position (using the global board), 
- * picks a random move from the legal move list, and returns it in algebraic notation.
- * 
- * Globals Used:
- *   - board (input): The current board state, including side_to_move.
- *   - legal_move_list, legal_move_count (input): Populated by generate_moves() and filter_legal_moves().
- *
- * Returns:
- *   - std::string: The chosen move in algebraic notation (e.g., "e2e4" or "e7e8q" for promotion).
- *
- * Side Effects:
- *   - Prints the chosen move to stdout.
- *
- * Usage:
- *   Call after generate_moves() and filter_legal_moves() to pick a random move.
- */
-Move get_next_bot_move() {
-    // Generate all legal moves
-    if (gen_and_validate_all_moves() == NO_MOVES) return NO_MOVES;
-
-    // std::cout << "Available legal moves: " << legal_move_count << ::endl;
-    // for (int i = 0; i < legal_move_count; ++i) {
-    //     std::string move_str = move_to_move_str(legal_move_list[i]);
-    //     std::cout << "Legal move: " << move_str << std::endl;
-    // }
-
-    int random = std::rand();
-    // std::cout << "Random num: " << random << std::endl;
-    int idx = random % legal_move_count;
-    Move chosen_move = legal_move_list[idx];
-
-    std::string move_str = move_to_move_str(chosen_move);
-    std::string colour_to_move = (board.side_to_move == 0 ? "White" : "Black");
-    std::cout << "Chesp32 (" << colour_to_move << ") plays: " << move_str << std::endl;
-    return chosen_move;
-}
-
 bool is_valid_move(Move *move) {
     for (int i = 0; i < legal_move_count; ++i) {
         int flag = move_flag(*move);
@@ -109,7 +72,11 @@ bool is_valid_move(Move *move) {
  *   Call generate_moves() before move selection or perft, and after making any board changes.
  */
 void generate_moves() {
+    // reset move count and both move and legal move lists
     move_count = 0;
+    std::memset(move_list, 0, sizeof(move_list));
+    std::memset(legal_move_list, 0, sizeof(legal_move_list));
+    
     generate_king_moves();
     generate_castling_moves();
     generate_sliding_moves(); // Queen, rook, bishop
@@ -136,6 +103,18 @@ void filter_legal_moves() {
         // std::cout << std::endl;
     }
     // std::cout << "[filter_legal_moves] Total legal moves: " << legal_move_count << std::endl;
+}
+
+
+// Returns a heap-allocated copy of the current legal move list and its count.
+// Caller is responsible for deleting the returned moves array.
+MoveList generate_moves_arr() {
+    generate_moves();
+    MoveList result;
+    result.count = legal_move_count;
+    result.moves = new Move[legal_move_count];
+    std::memcpy(result.moves, legal_move_list, legal_move_count * sizeof(Move));
+    return result;
 }
 
 // Attack table initialisation, saying at square sq, you have attacks...

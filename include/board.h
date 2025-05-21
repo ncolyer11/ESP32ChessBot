@@ -14,6 +14,14 @@ struct Board {
     uint8_t enpassant_square; // 0-63 for a1-h8, 64 for none
     uint8_t half_move_clock; // number of half moves since last pawn move or capture
     uint16_t full_moves; // starts at 1 and increments after black moves
+
+    struct {
+        Piece    captured_piece;
+        uint8_t  castling_rights;
+        uint8_t      enpassant_square;
+        uint8_t      half_move_clock;
+        uint16_t      full_moves;
+    } undo_state;
 };
 
 extern Board board;

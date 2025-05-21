@@ -7,6 +7,10 @@
 #include "util.h"
 
 U64 bitboard_for_piece(const Board* b, Piece piece);
+void undo_normal_move(Board *b, int from, int to, Piece moved, Piece captured);
+void undo_promotion_move(Board *b, int from, int to, Piece moved, Piece captured, int flag);
+void undo_en_passant_move(Board *b, int from, int to, Piece moved);
+void undo_castling_move(Board *b, int from, int to, Piece moved);
 
 /** TODO: UPDATE TO DOCSTRING TO MATCH NEW MAKE MOVE FUNC
  * @brief Modifies the internal board state based on the move provided.
@@ -29,16 +33,24 @@ bool make_move_on_board(Board *b, Move move) {
     int from = move_from(move), to = move_to(move), flag = move_flag(move);
     Piece piece = b->squares[from];
     Piece captured = b->squares[to];
-    if (flag >= 3 && flag <= 6) {
+    b->undo_state = {
+        captured,
+        b->castling_rights,
+        b->enpassant_square,
+        b->half_move_clock,
+        b->full_moves
+    };
+
+    if (flag >= PROMOTION_QUEEN_FLAG && flag <= PROMOTION_BISHOP_FLAG) {
         apply_promotion_move(b, from, to, piece, captured, flag);
-    } else if (flag == 1) {
+    } else if (flag == ENPASSANT_FLAG) {
         apply_en_passant_move(b, from, to, piece);
-    } else if (flag == 2) {
+    } else if (flag == CASTLING_FLAG) {
         apply_castling_move(b, from, to, piece);
     } else {
         apply_normal_move(b, from, to, piece, captured);
         // Double pawn move, i.e. pawn has moved 2 ranks
-        if (flag == 7) {
+        if (flag == DOUBLE_PAWN_FLAG) {
             b->enpassant_square = (from + to) / 2; // one square behind it
         } else {
             b->enpassant_square = 64;
@@ -58,8 +70,47 @@ bool make_move_on_board(Board *b, Move move) {
     return true;
 }
 
-// -- Helpers --
+/**
+ * @brief Reverts the last move made on the board.
+ * 
+ * This function restores the board state to its previous configuration
+ * by undoing the last move. It also restores the castling rights, en passant square,
+ * half-move clock, and full move number to their previous values.
+ * 
+ * @note This function assumes that the move to be undone is valid and was made
+ *       on the board. It does not perform any validation checks.
+ * 
+ * @param b The board struct, passed by reference, to unmake the move on
+ * @param move The move to be undone in algebraic notation (e.g., "d2d4", or e7e8q for a promotion).
+ */
+void unmake_move_on_board(Board *b, Move move) {
+    int from = move_from(move);
+    int to = move_to(move);
+    int flag = move_flag(move);
 
+    Piece moved = b->squares[to];
+    Piece captured = b->undo_state.captured_piece;
+
+    // Reverse piece‐placement
+    if (flag >= PROMOTION_QUEEN_FLAG && flag <= PROMOTION_BISHOP_FLAG) {
+        undo_promotion_move(b, from, to, moved, captured);
+    } else if (flag == ENPASSANT_FLAG) {
+        undo_en_passant_move(b, from, to, moved);
+    } else if (flag == CASTLING_FLAG) {
+        undo_castling_move(b, from, to, moved);
+    } else {
+        undo_normal_move(b, from, to, moved, captured);
+    }
+
+    // Restore params
+    b->castling_rights = b->undo_state.castling_rights;
+    b->enpassant_square = b->undo_state.enpassant_square;
+    b->half_move_clock = b->undo_state.half_move_clock;
+    b->full_moves = b->undo_state.full_moves;
+    b->side_to_move ^= 1;
+}
+
+// -- Helpers --
 void apply_normal_move(Board *b, int from, int to, Piece piece, Piece captured) {
     b->squares[to] = piece;
     b->squares[from] = NONE;
@@ -72,10 +123,10 @@ void apply_normal_move(Board *b, int from, int to, Piece piece, Piece captured) 
 void apply_promotion_move(Board *b, int from, int to, Piece piece, Piece captured, int flag) {
     Piece promo = 0;
     switch (flag) {
-        case 3: promo = QUEEN; break;
-        case 4: promo = KNIGHT; break;
-        case 5: promo = ROOK; break;
-        case 6: promo = BISHOP; break;
+        case PROMOTION_QUEEN_FLAG: promo = QUEEN; break;
+        case PROMOTION_KNIGHT_FLAG: promo = KNIGHT; break;
+        case PROMOTION_ROOK_FLAG: promo = ROOK; break;
+        case PROMOTION_BISHOP_FLAG: promo = BISHOP; break;
     }
     promo |= (piece & COLOUR_MASK);
     b->squares[to] = promo;
@@ -231,13 +282,13 @@ std::string move_to_move_str(Move move) {
     int to = move_to(move);
     int flag = move_flag(move);
     std::string move_str = square_idx_to_alg(from) + square_idx_to_alg(to);
-    if (flag >= 3 && flag <= 6) {
+    if (flag >= PROMOTION_QUEEN_FLAG && flag <= PROMOTION_BISHOP_FLAG) {
         char promo_char;
         switch (flag) {
-            case 3: promo_char = 'q'; break;
-            case 4: promo_char = 'n'; break;
-            case 5: promo_char = 'r'; break;
-            case 6: promo_char = 'b'; break;
+            case PROMOTION_QUEEN_FLAG: promo_char = 'q'; break;
+            case PROMOTION_KNIGHT_FLAG: promo_char = 'n'; break;
+            case PROMOTION_ROOK_FLAG: promo_char = 'r'; break;
+            case PROMOTION_BISHOP_FLAG: promo_char = 'b'; break;
             default: promo_char = '?'; break;
         }
         move_str += promo_char;
@@ -255,10 +306,10 @@ Move move_str_to_move(std::string move_str) {
     int flag = 0;
     if (move_str.length() == 5) {
         switch (move_str[4]) {
-            case 'q': flag = 3; break;
-            case 'n': flag = 4; break;
-            case 'r': flag = 5; break;
-            case 'b': flag = 6; break;
+            case 'q': flag = PROMOTION_QUEEN_FLAG; break;
+            case 'n': flag = PROMOTION_KNIGHT_FLAG; break;
+            case 'r': flag = PROMOTION_ROOK_FLAG; break;
+            case 'b': flag = PROMOTION_BISHOP_FLAG; break;
             default: flag = 0; break;
         }
     }
@@ -281,4 +332,70 @@ bool validate_move_encoding(Move move) {
     }
 
     return true;
+}
+
+// UNDO helpers, reverse of apply_*
+void undo_normal_move(Board *b, int from, int to, Piece moved, Piece captured) {
+    // 'Uncapture' the piece/none
+    b->squares[from] = moved;
+    b->squares[to] = captured;
+    b->bitboards[piece_to_bitboard_idx(moved)] ^= (1ULL << from) | (1ULL << to);
+    if (captured != NONE) {
+        b->bitboards[piece_to_bitboard_idx(captured)] |= (1ULL << to);
+    }
+}
+
+void undo_promotion_move(Board *b, int from, int to, Piece moved, Piece captured) {
+    // moved is the promoted piece; original pawn = (PAWN|colour)
+    Piece pawn = PAWN | (moved & COLOUR_MASK);
+    b->squares[from] = pawn;
+    b->squares[to] = captured;
+    // remove promo from bitboard, restore pawn
+    b->bitboards[piece_to_bitboard_idx(moved)] ^= (1ULL << to);
+    b->bitboards[piece_to_bitboard_idx(pawn)] |= (1ULL << from);
+    if (captured != NONE) {
+        b->bitboards[piece_to_bitboard_idx(captured)] |= (1ULL << to);
+    }
+}
+
+void undo_en_passant_move(Board *b, int from, int to, Piece moved) {
+    bool was_black = (moved & BLACK);
+    int ep_capture_sq = to + (was_black ? -8 : 8);
+    // restore pawn capture
+    b->squares[from] = moved;
+    b->squares[to] = NONE;
+    b->squares[ep_capture_sq] = PAWN | (was_black ? WHITE : BLACK);
+    // restore bitboards
+    b->bitboards[piece_to_bitboard_idx(moved)] ^= (1ULL << from) | (1ULL << to);
+    int capture_bb_idx = piece_to_bitboard_idx(PAWN | (was_black ? WHITE : BLACK));
+    b->bitboards[capture_bb_idx] |= (1ULL << ep_capture_sq);
+}
+
+void undo_castling_move(Board *b, int from, int to, Piece king) {
+    // move king back
+    b->squares[from] = king;
+    b->squares[to] = NONE;
+    b->bitboards[piece_to_bitboard_idx(king)] ^= (1ULL << from) | (1UL << to);
+
+    // return rook
+    int rook_from, rook_to;
+    if (to == 6) { // White kingside
+        rook_from = 7;
+        rook_to = 5;
+    } else if (to == 2) { // White queenside
+        rook_from = 0;
+        rook_to = 3;
+    } else if (to == 62) { // Black kingside
+        rook_from = 63;
+        rook_to = 61;
+    } else if (to == 58) { // Black queenside
+        rook_from = 56;
+        rook_to = 59;
+    } else {
+        rook_from = rook_to = -1; // Invalid, should not happen
+    }
+    Piece rook = ROOK | (king & COLOUR_MASK);
+    b->squares[rook_from] = rook;
+    b->squares[rook_to] = NONE;
+    b->bitboards[piece_to_bitboard_idx(rook)] ^= (1ULL << rook_from) | (1ULL << rook_to);
 }
