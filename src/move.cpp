@@ -7,8 +7,15 @@
 #include "util.h"
 
 U64 bitboard_for_piece(const Board* b, Piece piece);
+
+void apply_normal_move(Board *b, int from, int to, Piece piece, Piece captured);
+void apply_promotion_move(Board *b, int from, int to, Piece piece, Piece captured, int flag);
+void apply_en_passant_move(Board *b, int from, int to, Piece piece);
+void apply_castling_move(Board *b, int from, int to, Piece piece);
+void update_castling_rights(Board *b, int from, int to, Piece piece, Piece captured);
+
 void undo_normal_move(Board *b, int from, int to, Piece moved, Piece captured);
-void undo_promotion_move(Board *b, int from, int to, Piece moved, Piece captured, int flag);
+void undo_promotion_move(Board *b, int from, int to, Piece moved, Piece captured);
 void undo_en_passant_move(Board *b, int from, int to, Piece moved);
 void undo_castling_move(Board *b, int from, int to, Piece moved);
 
@@ -404,24 +411,27 @@ void undo_castling_move(Board *b, int from, int to, Piece king) {
 }
 
 // quicksort function
-void quicksort_moves(Move *moves, int *scores, int low, int high) {
-    if (low < high) {
-        int pi = partition(moves, scores, low, high);
-        quicksort_moves(moves, scores, low, pi - 1);
-        quicksort_moves(moves, scores, pi + 1, high);
-    }
-}
-
-int partition(Move *moves, int *scores, int low, int high) {
-    int pivot = scores[moves[high]];
-    int i = (low - 1);
+// Partition function for parallel sorting of moves and scores
+int partition(Move* moves, int* scores, int low, int high) {
+    int pivot = scores[high]; // use the score at high as the pivot
+    int i = low - 1;
     for (int j = low; j < high; j++) {
-        if (scores[moves[j]] > pivot) { // Change to < for descending order
+        // Change > to < for ascending order
+        if (scores[j] > pivot) { // Sort descending
             i++;
             std::swap(moves[i], moves[j]);
             std::swap(scores[i], scores[j]);
         }
     }
     std::swap(moves[i + 1], moves[high]);
-    return (i + 1);
+    std::swap(scores[i + 1], scores[high]);
+    return i + 1;
+}
+
+void quicksort_moves(Move* moves, int* scores, int low, int high) {
+    if (low < high) {
+        int pi = partition(moves, scores, low, high);
+        quicksort_moves(moves, scores, low, pi - 1);
+        quicksort_moves(moves, scores, pi + 1, high);
+    }
 }

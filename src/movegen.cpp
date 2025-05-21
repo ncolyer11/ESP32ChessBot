@@ -74,8 +74,6 @@ bool is_valid_move(Move *move) {
 void generate_moves() {
     // reset move count and both move and legal move lists
     move_count = 0;
-    std::memset(move_list, 0, sizeof(move_list));
-    std::memset(legal_move_list, 0, sizeof(legal_move_list));
     
     generate_king_moves();
     generate_castling_moves();
@@ -105,11 +103,11 @@ void filter_legal_moves() {
     // std::cout << "[filter_legal_moves] Total legal moves: " << legal_move_count << std::endl;
 }
 
-
 // Returns a heap-allocated copy of the current legal move list and its count.
 // Caller is responsible for deleting the returned moves array.
 MoveList generate_moves_arr() {
     generate_moves();
+    filter_legal_moves();
     MoveList result;
     result.count = legal_move_count;
     result.moves = new Move[legal_move_count];
@@ -218,7 +216,6 @@ void generate_castling_moves() {
         }
     }
 }
-
 
 // -- Sliding piece moves (rooks, bishops, queens) --
 void generate_sliding_moves() {

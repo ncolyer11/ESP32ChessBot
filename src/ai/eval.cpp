@@ -1,9 +1,13 @@
+#include <cmath>
+
 #include "eval.h"
 #include "board.h"
+
 
 int force_king_to_corner_endgame_eval(int friendly_king_square,
                                       int opponent_king_square,
                                       float endgame_weight);
+
 
 int evaluate() {
     const Piece* board_squares = board.squares;
@@ -60,12 +64,11 @@ int evaluate() {
             positional_value = no_queens ? eg_king_table[table_idx] : mg_king_table[table_idx];
         } else {
             switch (type) {
-                case PAWN:   positional_value = pawn_pos_table[table_idx];   break;
+                case PAWN: positional_value = pawn_pos_table[table_idx]; break;
                 case KNIGHT: positional_value = knight_pos_table[table_idx]; break;
                 case BISHOP: positional_value = bishop_pos_table[table_idx]; break;
-                case ROOK:   positional_value = rook_pos_table[table_idx];   break;
-                case QUEEN:  positional_value = queen_pos_table[table_idx];  break;
-                default:     break;
+                case ROOK: positional_value = rook_pos_table[table_idx]; break;
+                case QUEEN: positional_value = queen_pos_table[table_idx]; break;
             }
         }
 
@@ -128,11 +131,22 @@ int evaluate() {
 int force_king_to_corner_endgame_eval(int friendly_king_square,
                                       int opponent_king_square,
                                       float endgame_weight) {
-    int opponent_file = opponent_king_square & 7;
-    int opponent_rank = opponent_king_square >> 3;
-    int file_distance = opponent_file < 4 ? (3 - opponent_file) : (opponent_file - 4);
-    int rank_distance = opponent_rank < 4 ? (3 - opponent_rank) : (opponent_rank - 4);
-    int total_distance = file_distance + rank_distance;
-    int base_corner_bonus = total_distance * 10;
-    return static_cast<int>(base_corner_bonus * endgame_weight);
+    int opp_file = opponent_king_square & 7;
+    int opp_rank = opponent_king_square >> 3;
+    int friend_file = friendly_king_square & 7;
+    int friend_rank = friendly_king_square >> 3;
+
+    int dist_to_center_file = opp_file < 4 ? (3 - opp_file) : (opp_file - 4);
+    int dist_to_center_rank = opp_rank < 4 ? (3 - opp_rank) : (opp_rank - 4);
+    int dist_to_center = dist_to_center_file + dist_to_center_rank;
+
+    int king_file_diff = std::abs(opp_file - friend_file);
+    int king_rank_diff = std::abs(opp_rank - friend_rank);
+    int king_distance = king_file_diff + king_rank_diff;
+
+    // combine opponent’s distance from center and separation from friendly king
+    int base_bonus = dist_to_center * 8 + king_distance * 4;
+
+    return static_cast<int>(base_bonus * endgame_weight);
 }
+

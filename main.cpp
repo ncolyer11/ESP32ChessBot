@@ -6,12 +6,15 @@
 
 #include "movegen.h" // advanced logic for generating all moves and picking the best one
 #include "fen.h"
+#include "search.h"
 #include "util.h"
 
 // https://lichess.org/editor
+// chcp 65001 to fix unicode in cmd
 
 void play();
 void check_for_test_mode();
+Move get_next_bot_move(); // this shouldn't be needed but it removes squiggly lines
 
 int main() {
     check_for_test_mode();
