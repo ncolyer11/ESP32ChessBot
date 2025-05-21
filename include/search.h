@@ -2,4 +2,4 @@
 
 #include "move.h"
 
-Move get_next_bot_move();
+Move get_next_bot_move(Board *b);

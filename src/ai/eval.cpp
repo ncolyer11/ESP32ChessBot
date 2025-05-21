@@ -9,9 +9,9 @@ int force_king_to_corner_endgame_eval(int friendly_king_square,
                                       float endgame_weight);
 
 
-int evaluate() {
-    const Piece* board_squares = board.squares;
-    bool side_to_move_is_black = board.side_to_move;
+int evaluate(Board *b) {
+    const Piece* board_squares = b->squares;
+    bool side_to_move_is_black = b->side_to_move;
 
     int bishop_count[2] = {0, 0};
     int rook_count[2] = {0, 0};

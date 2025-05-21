@@ -24,9 +24,7 @@ struct Board {
     } undo_state;
 };
 
-extern Board board;
-
-void init_board();
-void print_board(bool show_params = false, bool show_bitboards = false);
-void print_params();
-void print_bitboards();
+void init_board(Board *b);
+void print_board(Board *b, bool show_params = false, bool show_bitboards = false);
+void print_params(Board *b);
+void print_bitboards(Board *b);

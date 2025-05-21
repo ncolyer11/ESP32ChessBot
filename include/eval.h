@@ -1,5 +1,6 @@
 #pragma once
 
+#include "board.h"
 #include "piece.h"
 
 struct PhaseValues {
@@ -99,4 +100,4 @@ int force_king_to_corner_endgame_eval(int friendly_king_square,
                                       float endgame_weight);
 
 // full evaluation
-int evaluate();
+int evaluate(Board *b);

@@ -34,23 +34,25 @@ static inline Move encode_move(int from, int to, int flag) {
 }
 
 // Utility: get side's friendly/opponent color, index
-static inline uint8_t friendly_colour() { return board.side_to_move ? BLACK : WHITE; }
-static inline uint8_t opponent_colour() { return board.side_to_move ? WHITE : BLACK; }
-static inline int friendly_index() { return board.side_to_move ? 1 : 0; }
-static inline int opponent_index() { return board.side_to_move ? 0 : 1; }
+static inline uint8_t friendly_colour(Board *b) { return b->side_to_move ? BLACK : WHITE; }
+static inline uint8_t opponent_colour(Board *b) { return b->side_to_move ? WHITE : BLACK; }
 
 // Utility: check if piece is friendly/opponent
-static inline bool is_friendly(Piece piece) { return (piece & COLOUR_MASK) == friendly_colour(); }
-static inline bool is_opponent(Piece piece) { return (piece & COLOUR_MASK) == opponent_colour(); }
+static inline bool is_friendly(Board *b, Piece piece) { 
+    return (piece & COLOUR_MASK) == friendly_colour(b);
+}
+static inline bool is_opponent(Board *b, Piece piece) { 
+    return (piece & COLOUR_MASK) == opponent_colour(b);
+}
 
 
 bool is_valid_move(Move *move);
 
 // Updating board with moves
-bool make_move_on_board(struct Board *b, Move move);
+bool make_move_on_board(Board *b, Move move);
 void unmake_move_on_board(Board *b, Move move);
-bool king_in_check(const struct Board *b, bool side_to_move);
-bool king_in_check_after_move(int from, int to);
+bool king_in_check(Board *b);
+bool king_in_check_after_move(Board *b, int from, int to);
 
 std::string move_to_move_str(Move move);
 Move move_str_to_move(std::string move_str);

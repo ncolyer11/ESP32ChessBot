@@ -12,66 +12,55 @@
 // https://lichess.org/editor
 // chcp 65001 to fix unicode in cmd
 
-void play();
-void check_for_test_mode();
-Move get_next_bot_move(); // this shouldn't be needed but it removes squiggly lines
+void play(Board *b);
+Move get_next_bot_move(Board *b); // this shouldn't be needed but it removes squiggly lines
 
 int main() {
     check_for_test_mode();
-
+    
     // Seed rng for picking a random move (and later a random gm opening move)
     std::srand(std::time(nullptr));
-
+    
     std::cout << "Chess engine starting..." << std::endl;
-
+    
     // Get if player1/2 is human/bot
     get_player_types();
-
+    
     // Boards setup
-    init_board();
+    Board b;
+    init_board(&b);
     init_attack_bitboards();
 
     // Start game loop
-    play();
+    play(&b);
 
     return 0;
 }
 
-void play() {
+void play(Board *b) {
     while (true) {
-        print_board(true, MODE || false); // show params, show bitboards or testing
+        print_board(b, true, MODE || false); // show params, show bitboards or testing
 
         // Return if either king is missing
-        if (!board.bitboards[0] || !board.bitboards[6]) return;
+        if (!b->bitboards[0] || !b->bitboards[6]) return;
 
-        Move move = player_types[board.side_to_move] ? get_next_player_move() : get_next_bot_move();
+        Move move = player_types[b->side_to_move] ? get_next_player_move(b) : get_next_bot_move(b);
 
         // Exit on error or ctrl + d
         if (move == INVALID_MOVE) break;
 
         // Exit on end of game and print checkmate or stalemate message
         if (move == NO_MOVES) {
-            check_end_game_conditions(&board, legal_move_count);
+            check_end_game_conditions(b, legal_move_count);
             break;
         }
 
         // Exit on invalid move, also switches players
-        if (!make_move_on_board(&board, move)) break;
+        if (!make_move_on_board(b, move)) break;
 
         // if (!player1_is_human && !player2_is_human) {
         //     std::this_thread::sleep_for(std::chrono::milliseconds(100));
         // }
     }
-    ask_export_fen();
-}
-
-void check_for_test_mode() {
-    std::string input;
-    std::cout << "Enter 'test' to activate TEST MODE: " << std::flush;
-    if (!std::getline(std::cin, input)) return;
-    normalise_line(input);
-    if (input == "test") {
-        MODE = true;
-        std::cout << "TEST MODE ACTIVATED\n";
-    }
+    ask_export_fen(b);
 }

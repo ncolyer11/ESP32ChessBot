@@ -76,3 +76,14 @@ void normalise_line(std::string &s) {
     if (!s.empty() && s.back() == '\r')
         s.pop_back();
 }
+
+void check_for_test_mode() {
+    std::string input;
+    std::cout << "Enter 'test' to activate TEST MODE: " << std::flush;
+    if (!std::getline(std::cin, input)) return;
+    normalise_line(input);
+    if (input == "test") {
+        MODE = true;
+        std::cout << "TEST MODE ACTIVATED\n";
+    }
+}

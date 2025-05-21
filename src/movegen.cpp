@@ -22,16 +22,16 @@ uint64_t pawn_attacks[2][64];
 uint64_t knight_attacks[64];
 uint64_t king_attacks[64];
 
-Move gen_and_validate_all_moves();
+Move gen_and_validate_all_moves(Board *b);
 
 // Request next move from the current player
-Move get_next_player_move() {
-    if (gen_and_validate_all_moves() == NO_MOVES) return NO_MOVES;
+Move get_next_player_move(Board *b) {
+    if (gen_and_validate_all_moves(b) == NO_MOVES) return NO_MOVES;
 
     Move move;
     do {
         std::string move_str;
-        std::cout << ((board.side_to_move == 0) ? "White" : "Black") << " to move: ";
+        std::cout << ((b->side_to_move == 0) ? "White" : "Black") << " to move: ";
         if (!(std::cin >> move_str)) {  // exit on EOF (ctrl + z + enter on Windows *apparently*)
             std::cout << "Game ended prematurely by user." << std::endl;
             return INVALID_MOVE;
@@ -71,28 +71,28 @@ bool is_valid_move(Move *move) {
  * Usage:
  *   Call generate_moves() before move selection or perft, and after making any board changes.
  */
-void generate_moves() {
+void generate_moves(Board *b) {
     // reset move count and both move and legal move lists
     move_count = 0;
     
-    generate_king_moves();
-    generate_castling_moves();
-    generate_sliding_moves(); // Queen, rook, bishop
-    generate_knight_moves();
-    generate_pawn_moves();
+    generate_king_moves(b);
+    generate_castling_moves(b);
+    generate_sliding_moves(b); // Queen, rook, bishop
+    generate_knight_moves(b);
+    generate_pawn_moves(b);
 }
 
 // -- Legal move filtering --
 // Writes all legal moves from the global move_list/move_count into legal_move_list/legal_move_count
-void filter_legal_moves() {
+void filter_legal_moves(Board *b) {
     legal_move_count = 0;
     for (int i = 0; i < move_count; i++) {
-        Board temp = board; // copy the global board
+        Board temp = *b; // copy the global board XXX not global anymore sis
         std::string move_str = move_to_move_str(move_list[i]);
         // std::cout << "[filter_legal_moves] Testing move: " << move_str << std::endl;
         make_move_on_board(&temp, move_list[i]);
         // Pass in original side_to_move, as it gets inverted when make_move_on_board is called
-        if (!king_in_check(&temp, board.side_to_move)) {
+        if (!king_in_check(&temp)) { // XXX could also bug here see above comment
             // std::cout << "[filter_legal_moves] Move is legal: " << move_str << std::endl;
             legal_move_list[legal_move_count++] = move_list[i];
         } else {
@@ -105,9 +105,9 @@ void filter_legal_moves() {
 
 // Returns a heap-allocated copy of the current legal move list and its count.
 // Caller is responsible for deleting the returned moves array.
-MoveList generate_moves_arr() {
-    generate_moves();
-    filter_legal_moves();
+MoveList generate_moves_arr(Board *b) {
+    generate_moves(b);
+    filter_legal_moves(b);
     MoveList result;
     result.count = legal_move_count;
     result.moves = new Move[legal_move_count];
@@ -161,12 +161,12 @@ void init_attack_bitboards() {
 }
 
 // -- King moves (not castling) --
-void generate_king_moves() {
+void generate_king_moves(Board *b) {
     int king_sq = -1;
-    Piece king_piece = KING | friendly_colour();
+    Piece king_piece = KING | friendly_colour(b);
     // TODO: use the magic lookup de bruj shit instead here
     for (int i = 0; i < 64; i++) {
-        if (board.squares[i] == king_piece) {
+        if (b->squares[i] == king_piece) {
             king_sq = i;
             break;
         }
@@ -176,7 +176,7 @@ void generate_king_moves() {
     uint64_t king_targets = king_attacks[king_sq];
     for (int t = 0; t < 64; t++) {
         if ((king_targets & (1ULL << t)) && 
-            (!is_friendly(board.squares[t]) || board.squares[t] == NONE)) {
+            (!is_friendly(b, b->squares[t]) || b->squares[t] == NONE)) {
 
             add_move(king_sq, t, 0);
         }
@@ -184,45 +184,45 @@ void generate_king_moves() {
 }
 
 // -- Castling moves (call after king moves) --
-void generate_castling_moves() {
-    int king_sq = (friendly_colour() == WHITE) ? 4 : 60;
-    // std::cout << "Castling rights: " << std::bitset<4>(board.castling_rights) << std::endl;
+void generate_castling_moves(Board *b) {
+    int king_sq = (friendly_colour(b) == WHITE) ? 4 : 60;
+    // std::cout << "Castling rights: " << std::bitset<4>(b->castling_rights) << std::endl;
     // Kingside
-    if ((friendly_colour() == WHITE && (board.castling_rights & 0b0001)) ||
-        (friendly_colour() == BLACK && (board.castling_rights & 0b0100))) {
-        int f = (friendly_colour() == WHITE) ? 5 : 61;
-        int g = (friendly_colour() == WHITE) ? 6 : 62;
+    if ((friendly_colour(b) == WHITE && (b->castling_rights & 0b0001)) ||
+        (friendly_colour(b) == BLACK && (b->castling_rights & 0b0100))) {
+        int f = (friendly_colour(b) == WHITE) ? 5 : 61;
+        int g = (friendly_colour(b) == WHITE) ? 6 : 62;
 
-        if (board.squares[f] == NONE && board.squares[g] == NONE &&
-            !king_in_check(&board, board.side_to_move) &&
-            !king_in_check_after_move(king_sq, f) &&
-            !king_in_check_after_move(king_sq, g)) {
+        if (b->squares[f] == NONE && b->squares[g] == NONE &&
+            !king_in_check(b) &&
+            !king_in_check_after_move(b, king_sq, f) &&
+            !king_in_check_after_move(b, king_sq, g)) {
             add_move(king_sq, g, 2); // Castling flag
         }
     }
 
     // Queenside
-    if ((friendly_colour() == WHITE && (board.castling_rights & 0b0010)) ||
-        (friendly_colour() == BLACK && (board.castling_rights & 0b1000))) {
-        int d = (friendly_colour() == WHITE) ? 3 : 59;
-        int c = (friendly_colour() == WHITE) ? 2 : 58;
-        int b = (friendly_colour() == WHITE) ? 1 : 57;
+    if ((friendly_colour(b) == WHITE && (b->castling_rights & 0b0010)) ||
+        (friendly_colour(b) == BLACK && (b->castling_rights & 0b1000))) {
+        int d = (friendly_colour(b) == WHITE) ? 3 : 59;
+        int c = (friendly_colour(b) == WHITE) ? 2 : 58;
+        int b_rank = (friendly_colour(b) == WHITE) ? 1 : 57;
 
-        if (board.squares[d] == NONE && board.squares[c] == NONE && board.squares[b] == NONE &&
-            !king_in_check(&board, board.side_to_move) &&
-            !king_in_check_after_move(king_sq, d) &&
-            !king_in_check_after_move(king_sq, c)) {
+        if (b->squares[d] == NONE && b->squares[c] == NONE && b->squares[b_rank] == NONE &&
+            !king_in_check(b) &&
+            !king_in_check_after_move(b, king_sq, d) &&
+            !king_in_check_after_move(b, king_sq, c)) {
             add_move(king_sq, c, 2); // Castling flag
         }
     }
 }
 
 // -- Sliding piece moves (rooks, bishops, queens) --
-void generate_sliding_moves() {
+void generate_sliding_moves(Board *b) {
     static const int directions[8] = {1, -1, 8, -8, 9, -9, 7, -7};
     for (int i = 0; i < 64; i++) {
-        Piece p = board.squares[i];
-        if (!is_friendly(p)) continue;
+        Piece p = b->squares[i];
+        if (!is_friendly(b, p)) continue;
         int type = p & TYPE_MASK;
         int start_dir = (type == ROOK) ? 0 : (type == BISHOP) ? 4 : 0;
         int end_dir = (type == ROOK) ? 4 : (type == BISHOP) ? 8 : (type == QUEEN) ? 8 : 0;
@@ -232,8 +232,8 @@ void generate_sliding_moves() {
             while (true) {
                 int next = n + directions[d];
                 if (next < 0 || next >= 64 || abs((n % 8) - (next % 8)) > 2) break;
-                Piece target = board.squares[next];
-                if (is_friendly(target)) break;
+                Piece target = b->squares[next];
+                if (is_friendly(b, target)) break;
                 add_move(i, next, 0);
                 if (target != NONE) break;
                 n = next;
@@ -243,28 +243,28 @@ void generate_sliding_moves() {
 }
 
 // -- Knight moves --
-void generate_knight_moves() {
+void generate_knight_moves(Board *b) {
     for (int i = 0; i < 64; i++) {
-        if (board.squares[i] != (KNIGHT | friendly_colour())) continue;
+        if (b->squares[i] != (KNIGHT | friendly_colour(b))) continue;
         uint64_t attacks = knight_attacks[i];
         for (int t = 0; t < 64; t++)
-            if ((attacks & (1ULL << t)) && !is_friendly(board.squares[t]))
+            if ((attacks & (1ULL << t)) && !is_friendly(b, b->squares[t]))
                 add_move(i, t, 0);
     }
 }
 
 // -- Pawn moves (single, double, capture, en passant, promotion) --
-void generate_pawn_moves() {
-    int direction = board.side_to_move ? -8 : 8;
-    int start_rank = board.side_to_move ? 6 : 1;
-    int promotion_rank = board.side_to_move ? 0 : 7;
-    // std::cout << "turn: " << board.side_to_move << std::endl;
+void generate_pawn_moves(Board *b) {
+    int direction = b->side_to_move ? -8 : 8;
+    int start_rank = b->side_to_move ? 6 : 1;
+    int promotion_rank = b->side_to_move ? 0 : 7;
+    // std::cout << "turn: " << b->side_to_move << std::endl;
     for (int sq_idx = 0; sq_idx < 64; sq_idx++) {
-        if (board.squares[sq_idx] != (PAWN | friendly_colour())) continue;
+        if (b->squares[sq_idx] != (PAWN | friendly_colour(b))) continue;
         // std::cout << "Pawn found at position: " << sq_idx << std::endl;
         int to = sq_idx + direction;
         // Forward
-        if (to >= 0 && to < 64 && board.squares[to] == NONE) {
+        if (to >= 0 && to < 64 && b->squares[to] == NONE) {
             if (to / 8 == promotion_rank) {
                 // Add the 4 different possible promotion moves
                 add_move(sq_idx, to, 3); add_move(sq_idx, to, 4);
@@ -276,7 +276,7 @@ void generate_pawn_moves() {
                 // Double push from start
                 if (sq_idx / 8 == start_rank) {
                     int dbl = sq_idx + 2 * direction;
-                    if (board.squares[dbl] == NONE) {
+                    if (b->squares[dbl] == NONE) {
                         add_move(sq_idx, dbl, 7);
                         // std::cout << "Pawn double push from " << sq_idx << " to " << dbl << std::endl;
                     }
@@ -287,10 +287,10 @@ void generate_pawn_moves() {
         for (int df = -1; df <= 1; df += 2) {
             int file = sq_idx % 8;
             int cap_file = file + df;
-            if (cap_file < 0 || cap_file > 7) continue;  // Add this check!
+            if (cap_file < 0 || cap_file > 7) continue;
             int cap = sq_idx + direction + df;
             if (cap < 0 || cap >= 64) continue;
-            if (board.squares[cap] != NONE && is_opponent(board.squares[cap])) {
+            if (b->squares[cap] != NONE && is_opponent(b, b->squares[cap])) {
                 if (cap / 8 == promotion_rank) {
                     add_move(sq_idx, cap, 3); add_move(sq_idx, cap, 4);
                     add_move(sq_idx, cap, 5); add_move(sq_idx, cap, 6);
@@ -300,13 +300,13 @@ void generate_pawn_moves() {
             }
         }
         // En passant
-        if (board.enpassant_square < 64) {
+        if (b->enpassant_square < 64) {
             int file = sq_idx % 8;
             for (int df = -1; df <= 1; df += 2) {
                 int cap_file = file + df;
                 if (cap_file < 0 || cap_file > 7) continue;
                 int cap = sq_idx + direction + df;
-                if (cap == board.enpassant_square) {
+                if (cap == b->enpassant_square) {
                     add_move(sq_idx, cap, 1);
                 }
             }
@@ -315,30 +315,30 @@ void generate_pawn_moves() {
 }
 
 // Check if a king is attacked after moving to a square
-bool king_in_check_after_move(int from, int to) {
-    Board temp = board;
+bool king_in_check_after_move(Board *b, int from, int to) {
+    Board temp = *b;
     make_move_on_board(&temp, encode_move(from, to, 0));
-    bool in_check = king_in_check(&temp, board.side_to_move);
+    bool in_check = king_in_check(&temp); // XXX this used to pass in board b side to move so might cause bugs later
     return in_check;
 }
 
 bool check_end_game_conditions(Board *b, int legal_moves_count) {
-    bool is_king_in_check = king_in_check(b, b->side_to_move);
+    bool is_king_in_check = king_in_check(b);
     if (is_checkmate(legal_moves_count, is_king_in_check)) {
-        print_board(true);
+        print_board(b, true);
         std::cout << (b->side_to_move == 0 ? "White" : "Black") << " is checkmated. "
                   << (b->side_to_move == 1 ? "White" : "Black") << " wins." << std::endl;
         return false;
     }
 
     if (is_draw(b->half_move_clock)) {
-        print_board(true);
+        print_board(b, true);
         std::cout << "Draw by fifty-move rule!" << std::endl;
         return false;
     }
 
     if (is_stalemate(legal_moves_count, is_king_in_check)) {
-        print_board(true);
+        print_board(b, true);
         std::cout << "Stalemate!" << std::endl;
         return false;
     }
@@ -362,14 +362,14 @@ bool is_stalemate(int legal_moves_count, bool is_king_in_check) {
     return (legal_moves_count == 0) && !is_king_in_check;
 }
 
-Move gen_and_validate_all_moves() {
-    generate_moves();
-    filter_legal_moves();
+Move gen_and_validate_all_moves(Board *b) {
+    generate_moves(b);
+    filter_legal_moves(b);
 
     if (legal_move_count == 0) {
-        std::cout << "Chesp32 (" << (board.side_to_move == 0 ? "White" : "Black") << ") has no legal moves." << std::endl;
+        std::cout << "Chesp32 (" << (b->side_to_move == 0 ? "White" : "Black") << ") has no legal moves." << std::endl;
         return NO_MOVES;
-    } else if (board.half_move_clock > 50) {
+    } else if (b->half_move_clock > 50) {
         // Error message printed in check_end_game_conditions()
         return NO_MOVES;
     }

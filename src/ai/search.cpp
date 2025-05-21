@@ -4,9 +4,9 @@
 #include "movegen.h"
 #include "search.h"
 
-int search(int depth, int alpha, int beta);
-void sort_moves(MoveList* move_list);
-Move find_best_move(int depth);
+int search(Board *b, int depth, int alpha, int beta);
+void sort_moves(Board *b, MoveList* move_list);
+Move find_best_move(Board *b, int depth);
 
 // infinities
 constexpr int pos_infinity =  10000000;
@@ -29,10 +29,10 @@ constexpr int neg_infinity = -pos_infinity;
  * Usage:
  *   Call after generate_moves() and filter_legal_moves() to pick a random move.
  */
-Move get_next_bot_move() {
-    Move chosen_move = find_best_move(3);
+Move get_next_bot_move(Board *b) {
+    Move chosen_move = find_best_move(b, 3);
     std::string move_str = move_to_move_str(chosen_move);
-    std::string colour_to_move = (board.side_to_move == 0 ? "White" : "Black");
+    std::string colour_to_move = (b->side_to_move == 0 ? "White" : "Black");
     std::cout << "Chesp32 (" << colour_to_move << ") plays: " << move_str << std::endl;
     return chosen_move;
 }
@@ -45,14 +45,14 @@ Move random_search(const Move* legal_move_list, int legal_move_count) {
     return chosen_move;
 }
 
-Move find_best_move(int depth) {
-    MoveList move_list = generate_moves_arr();
+Move find_best_move(Board *b, int depth) {
+    MoveList move_list = generate_moves_arr(b);
     std::cout << "Moves before sorting:" << std::endl;
     for (int i = 0; i < move_list.count; ++i) {
         std::cout << move_to_move_str(move_list.moves[i]) << " ";
     }
     std::cout << std::endl;
-    sort_moves(&move_list);
+    sort_moves(b, &move_list);
     std::cout << "Moves after sorting:" << std::endl;
     for (int i = 0; i < move_list.count; ++i) {
         std::cout << move_to_move_str(move_list.moves[i]) << " ";
@@ -69,9 +69,9 @@ Move find_best_move(int depth) {
         std::string move_str = move_to_move_str(move);
         std::cout << "Evaluating move: " << move_str << std::endl;
 
-        make_move_on_board(&board, move);
-        int score = -search(depth - 1, -beta, -alpha);
-        unmake_move_on_board(&board, move);
+        make_move_on_board(b, move);
+        int score = -search(b, depth - 1, -beta, -alpha);
+        unmake_move_on_board(b, move);
 
         std::cout << "Move " << move_str << " has score " << score << std::endl;
 
@@ -86,31 +86,31 @@ Move find_best_move(int depth) {
     return best_move;
 }
 
-int search(int depth, int alpha, int beta) {
+int search(Board *b, int depth, int alpha, int beta) {
     std::cout << "search(depth=" << depth << "), side to move: " 
-              << board.side_to_move << ", alpha: " << alpha << ", beta: " << beta << std::endl;
+              << b->side_to_move << ", alpha: " << alpha << ", beta: " << beta << std::endl;
     if (depth == 0) {
-        return evaluate();
+        return evaluate(b);
     }
 
-    MoveList move_list = generate_moves_arr();
+    MoveList move_list = generate_moves_arr(b);
     std::cout << "Move count: " << move_list.count << std::endl;
 
     if (move_list.count == 0) {
         std::cout << "No legal moves available." << std::endl;
-        if (king_in_check(&board, board.side_to_move)) {
+        if (king_in_check(b)) {
             return neg_infinity; // Checkmate
         }
         return 0; // Stalemate
     }
 
     // Heuristically presort moves to have relatively better ones first
-    sort_moves(&move_list);
+    sort_moves(b, &move_list);
     for (int i = 0; i < move_list.count; ++i) {
         Move move = move_list.moves[i];
-        make_move_on_board(&board, move);
-        int eval = -search(depth - 1, -beta, -alpha);
-        unmake_move_on_board(&board, move);
+        make_move_on_board(b, move);
+        int eval = -search(b, depth - 1, -beta, -alpha);
+        unmake_move_on_board(b, move);
         if (eval >= beta) {
             // Move is better for the opponent, prune the search
             return beta;
@@ -122,13 +122,13 @@ int search(int depth, int alpha, int beta) {
 }
 
 // Prioritise captures and checks
-void sort_moves(MoveList* move_list) {
+void sort_moves(Board *b, MoveList* move_list) {
     int move_scores[move_list->count];
     for (int i = 0; i < move_list->count; i++) {
         Move move = move_list->moves[i];
         int est_move_score = 0;
-        Piece move_piece_type = board.squares[move_from(move)] & TYPE_MASK;
-        Piece capture_piece_type = board.squares[move_to(move)] & TYPE_MASK;
+        Piece move_piece_type = b->squares[move_from(move)] & TYPE_MASK;
+        Piece capture_piece_type = b->squares[move_to(move)] & TYPE_MASK;
 
         // Good value trades are preferred
         if (capture_piece_type != NONE) {

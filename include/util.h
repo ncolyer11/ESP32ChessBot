@@ -27,5 +27,6 @@ int piece_to_bitboard_idx(Piece piece);
 Piece symbol_to_piece(char symbol);
 int bit_scan_forward(U64 bb);
 
+void check_for_test_mode();
 // strip UTF-8 BOM (0xEF,0xBB,0xBF) and trailing '\r'
 void normalise_line(std::string &s);

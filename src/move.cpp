@@ -154,7 +154,7 @@ void apply_en_passant_move(Board *b, int from, int to, Piece piece) {
     b->squares[from] = NONE;
     b->bitboards[piece_to_bitboard_idx(piece)] ^= (1ULL << from) | (1ULL << to);
     int ep_capture_sq = to + (b->side_to_move ? 8 : -8);
-    b->bitboards[piece_to_bitboard_idx(PAWN | opponent_colour())] ^= (1ULL << ep_capture_sq);
+    b->bitboards[piece_to_bitboard_idx(PAWN | opponent_colour(b))] ^= (1ULL << ep_capture_sq);
     b->squares[ep_capture_sq] = NONE;
     b->enpassant_square = 64;
 }
@@ -219,7 +219,8 @@ void update_castling_rights(Board *b, int from, int to, Piece piece, Piece captu
 }
 
 // -- King in check detection (uses attack bitboards) --
-bool king_in_check(const Board *b, bool side_to_move) {
+bool king_in_check(Board *b) {
+    bool side_to_move = b->side_to_move;
     Piece king = KING | (side_to_move ? BLACK : WHITE);
     U64 king_bb = b->bitboards[piece_to_bitboard_idx(king)];
     if (king_bb == 0) {
@@ -229,19 +230,19 @@ bool king_in_check(const Board *b, bool side_to_move) {
     }
     int king_sq = bit_scan_forward(king_bb);
     // Pawn attacks
-    if (pawn_attacks[side_to_move][king_sq] & bitboard_for_piece(b, PAWN | opponent_colour())) {
+    if (pawn_attacks[side_to_move][king_sq] & bitboard_for_piece(b, PAWN | opponent_colour(b))) {
         // std::cout << "[king_in_check] King at " << square_idx_to_alg(king_sq) 
                 //   << " is attacked by pawn" << std::endl;
         return true;
     }
     // Knight attacks
-    if (knight_attacks[king_sq] & bitboard_for_piece(b, KNIGHT | opponent_colour())) {
+    if (knight_attacks[king_sq] & bitboard_for_piece(b, KNIGHT | opponent_colour(b))) {
         // std::cout << "[king_in_check] King at " << square_idx_to_alg(king_sq) 
                 //   << " is attacked by knight" << std::endl;
         return true;
     }
     // King attacks (for double check detection)
-    if (king_attacks[king_sq] & bitboard_for_piece(b, KING | opponent_colour())) {
+    if (king_attacks[king_sq] & bitboard_for_piece(b, KING | opponent_colour(b))) {
         // std::cout << "[king_in_check] King at " << square_idx_to_alg(king_sq)
                 //   << " is attacked by king" << std::endl;
         return true;
