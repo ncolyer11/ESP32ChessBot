@@ -386,7 +386,7 @@ void undo_castling_move(Board *b, int from, int to, Piece king) {
     // move king back
     b->squares[from] = king;
     b->squares[to] = NONE;
-    b->bitboards[piece_to_bitboard_idx(king)] ^= (1ULL << from) | (1UL << to);
+    // b->bitboards[piece_to_bitboard_idx(king)] ^= ((1ULL << from) | (1UL << to));
 
     // return rook
     int rook_from, rook_to;
