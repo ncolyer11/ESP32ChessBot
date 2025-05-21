@@ -371,7 +371,7 @@ void undo_promotion_move(Board *b, int from, int to, Piece moved, Piece captured
 
 void undo_en_passant_move(Board *b, int from, int to, Piece moved) {
     bool was_black = (moved & BLACK);
-    int ep_capture_sq = to + (was_black ? -8 : 8);
+    int ep_capture_sq = to + (was_black ? 8 : -8);
     // restore pawn capture
     b->squares[from] = moved;
     b->squares[to] = NONE;
@@ -386,7 +386,7 @@ void undo_castling_move(Board *b, int from, int to, Piece king) {
     // move king back
     b->squares[from] = king;
     b->squares[to] = NONE;
-    // b->bitboards[piece_to_bitboard_idx(king)] ^= ((1ULL << from) | (1UL << to));
+    b->bitboards[piece_to_bitboard_idx(king)] ^= (1ULL << from) | (1ULL << to);
 
     // return rook
     int rook_from, rook_to;
