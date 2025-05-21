@@ -19,14 +19,19 @@ void init_board(Board *b) {
 void print_board(Board *b, bool show_params, bool show_bitboards) {
     for (int rank = 7; rank >= 0; --rank) {
         // Rank label
-        std::cout << (rank + 1) << " " << RESET;
+        std::cout << (rank + 1) << " ";
         for (int file = 0; file < 8; ++file) {
             Piece piece = b->squares[file_rank_to_square_idx(file, rank)];
-
+            
+            if (MODE) {
+                char symbol = PIECE_SYMBOLS[piece & TYPE_MASK];
+                symbol = (piece & BLACK) ? tolower(symbol) : toupper(symbol);
+                std::cout << symbol << " ";
+                continue;
+            }
+            
             // Square color: light (white) or dark (green/blue)
-            const char* bg = is_light_square(file, rank) ? WHITE_BG : GREEN_BG;
-
-            // Piece emoji (or blank)
+            const char *bg = is_light_square(file, rank) ? WHITE_BG : GREEN_BG;
             std::cout << bg << get_sprite(piece) << RESET;
         }
         std::cout << std::endl;

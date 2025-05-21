@@ -12,7 +12,7 @@ for %%t in (tests\*.in) do (
     .\bin\chesp32.exe < tests\!name!.in > tmp_actual.txt
     set "expected=tests\!name!.out"
 
-    fc /b tmp_actual.txt !expected! >nul
+    fc /L tmp_actual.txt !expected! >nul
     if errorlevel 1 (
         echo ❌ FAILED
         set /a fail+=1
