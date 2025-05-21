@@ -62,10 +62,10 @@ void print_params(Board *b) {
     std::cout << "Params: " << (b->side_to_move == 0 ? "w" : "b") << ' ';
 
     // Castling rights
-    if (b->castling_rights & 0b1000) std::cout << 'K';
-    if (b->castling_rights & 0b0100) std::cout << 'Q';
-    if (b->castling_rights & 0b0010) std::cout << 'k';
-    if (b->castling_rights & 0b0001) std::cout << 'q';
+    if (b->castling_rights & 0b0001) std::cout << 'K';
+    if (b->castling_rights & 0b0010) std::cout << 'Q';
+    if (b->castling_rights & 0b0100) std::cout << 'k';
+    if (b->castling_rights & 0b1000) std::cout << 'q';
     if (b->castling_rights == 0) std::cout << '-';
     std::cout << ' ';
 

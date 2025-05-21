@@ -34,6 +34,7 @@ Move get_next_bot_move(Board *b, int depth) {
     MoveList move_list = { {}, 0 };
     Move chosen_move = find_best_move(b, &move_list, depth);
     if (!check_end_game_conditions(b, move_list.count)) return NO_MOVES;
+    
     std::string move_str = move_to_move_str(chosen_move);
     std::string colour_to_move = (b->side_to_move == 0 ? "White" : "Black");
     std::cout << "Chesp32 (" << colour_to_move << ") plays: " << move_str << std::endl;
@@ -81,6 +82,7 @@ int search(Board *b, int depth, int alpha, int beta) {
     
     if (move_list.count == 0) {
         if (king_in_check(b)) {
+            std::cout << "CHECKMATE at depth " << depth << std::endl;
             return neg_infinity; // Checkmate
         }
         return 0; // Stalemate

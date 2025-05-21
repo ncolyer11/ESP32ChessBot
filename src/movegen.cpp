@@ -86,7 +86,6 @@ void generate_moves(Board *b, MoveList *legal_move_list) {
 }
 
 // -- Legal move filtering --
-// Writes all legal moves from the global move_list/move_count into legal_move_list/legal_move_count
 void filter_legal_moves(Board *b, MoveList move_list, MoveList *legal_move_list) {
     bool debug = 0;
     legal_move_list->count = 0;
@@ -94,12 +93,10 @@ void filter_legal_moves(Board *b, MoveList move_list, MoveList *legal_move_list)
         std::string move_str = move_to_move_str(move_list.moves[i]);
         if (debug) std::cout << "[filter_legal_moves] Testing move: " << move_str << std::endl;
         
-        // Board temp = *b;
-        // make_move_on_board(&temp, move_list.moves[i]);
         make_move_on_board(b, move_list.moves[i]);
         b->side_to_move ^= 1; // Switch back as it gets inverted in make_move_on_board
         bool in_check = king_in_check(b);
-        b->side_to_move ^= 1; // Switch back as it gets inverted in make_move_on_board
+        b->side_to_move ^= 1; // Switch back as it gets uninverted in unmake_move_on_board
         unmake_move_on_board(b, move_list.moves[i]);
         if (!in_check) {
             legal_move_list->moves[legal_move_list->count++] = move_list.moves[i];
@@ -150,7 +147,7 @@ void init_attack_bitboards() {
         int r = sq / 8, f = sq % 8;
         // White
         if (r < 7) {
-            if (f > 0) pawn_attacks[0][sq] |= 1ULL << ((r+1)*8 + (f-1));
+            if (f > 0) pawn_attacks[0][sq] |= 1ULL << ((r+1)*8 + (f-1)); 
             if (f < 7) pawn_attacks[0][sq] |= 1ULL << ((r+1)*8 + (f+1));
         }
         // Black
@@ -159,6 +156,27 @@ void init_attack_bitboards() {
             if (f < 7) pawn_attacks[1][sq] |= 1ULL << ((r-1)*8 + (f+1));
         }
     }
+    // print out bbs
+    for (int sq = 0; sq < 64; sq++) {
+        std::cout << "Knight attacks for square " << square_idx_to_alg(sq) << ": "
+                  << std::bitset<64>(knight_attacks[sq]) << std::endl;
+    }
+    std::cout << std::endl;
+    for (int sq = 0; sq < 64; sq++) {
+        std::cout << "King attacks for square " << square_idx_to_alg(sq) << ": "
+                  << std::bitset<64>(king_attacks[sq]) << std::endl;
+    }
+    std::cout << std::endl;
+    for (int sq = 0; sq < 64; sq++) {
+        std::cout << "White pawn attacks for square " << square_idx_to_alg(sq) << ": "
+                  << std::bitset<64>(pawn_attacks[0][sq]) << std::endl;
+    }
+    std::cout << std::endl;
+    for (int sq = 0; sq < 64; sq++) {
+        std::cout << "Black pawn attacks for square " << square_idx_to_alg(sq) << ": "
+                  << std::bitset<64>(pawn_attacks[1][sq]) << std::endl;
+    }
+    std::cout << std::endl;
 }
 
 // -- King moves (not castling) --
@@ -323,10 +341,12 @@ void generate_pawn_moves(Board *b, MoveList *move_list) {
 
 // Check if a king is attacked after moving to a square
 bool king_in_check_after_move(Board *b, int from, int to) {
-    Board temp = *b;
-    make_move_on_board(&temp, encode_move(from, to, 0));
-    temp.side_to_move ^= 1; // Switch back as it gets inverted in make_move_on_board
-    bool in_check = king_in_check(&temp);
+    Move king_move = encode_move(from, to, 0);
+    make_move_on_board(b, king_move);
+    b->side_to_move ^= 1;
+    bool in_check = king_in_check(b);
+    b->side_to_move ^= 1;
+    unmake_move_on_board(b, king_move);
     return in_check;
 }
 

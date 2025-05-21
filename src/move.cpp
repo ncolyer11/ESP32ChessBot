@@ -1,3 +1,4 @@
+#include <bitset>
 #include <iostream>
 
 #include "board.h"
@@ -74,7 +75,7 @@ bool make_move_on_board(Board *b, Move move) {
     if ((piece & TYPE_MASK) == PAWN || captured != NONE) {
         b->half_move_clock = 0;
     } else {
-        ++b->half_move_clock;
+        b->half_move_clock++;
     }
     if (!(b->side_to_move)) b->full_moves++;
     b->side_to_move ^= 1;
@@ -233,29 +234,72 @@ void update_castling_rights(Board *b, int from, int to, Piece piece, Piece captu
 bool king_in_check(Board *b) {
     bool side_to_move = b->side_to_move;
     Piece king = KING | (side_to_move ? BLACK : WHITE);
-    U64 king_bb = b->bitboards[piece_to_bitboard_idx(king)];
+    U64 king_bb = bitboard_for_piece(b, king);
     if (king_bb == 0) {
-        // std::cout << "[king_in_check] King not found for side "
-                //   << (side_to_move ? "Black" : "White") << std::endl;
+        std::cout << "[king_in_check] King not found for side "
+                  << (side_to_move ? "Black" : "White") << std::endl;
         return false;
     }
+
     int king_sq = bit_scan_forward(king_bb);
-    // Pawn attacks
-    if (pawn_attacks[side_to_move][king_sq] & bitboard_for_piece(b, PAWN | opponent_colour(b))) {
-        // std::cout << "[king_in_check] King at " << square_idx_to_alg(king_sq) 
-                //   << " is attacked by pawn" << std::endl;
+    uint8_t opponent_color = side_to_move ? WHITE : BLACK;
+
+
+    // --- Pawn attacks ---
+    // Calculate the squares from which an opponent's pawn could attack the king
+    U64 potential_attacking_pawn_squares = 0ULL;
+
+    if (!side_to_move) { // King is White (b->side_to_move == 0), so attacked by Black pawns
+        // Check for boundary conditions:
+        if (king_sq / 8 < 6) { // King is below 7th rank
+            if (king_sq % 8 > 0) { // King is not on 'a' file
+                potential_attacking_pawn_squares |= (1ULL << (king_sq + 7)); 
+            }
+            if (king_sq % 8 < 7) { // King is not on 'h' file
+                potential_attacking_pawn_squares |= (1ULL << (king_sq + 9));
+            }
+        }
+    } else { // King is Black (b->side_to_move == 1), so attacked by White pawns
+        // Check for boundary conditions:
+        if (king_sq / 8 > 1) { // King is above 1st rank
+            if (king_sq % 8 > 0) { // King is not on 'a' file
+                potential_attacking_pawn_squares |= (1ULL << (king_sq - 9));
+            }
+            if (king_sq % 8 < 7) { // King is not on 'h' file
+                potential_attacking_pawn_squares |= (1ULL << (king_sq - 7)); 
+            }
+        }
+    }
+
+    // Now, check if any opponent pawns actually occupy these potential attacking squares
+    U64 actual_opponent_pawns = bitboard_for_piece(b, PAWN | opponent_color);
+    if (potential_attacking_pawn_squares & actual_opponent_pawns) {
+        std::cout << "[king_in_check] King at " << square_idx_to_alg(king_sq)
+                  << " is attacked by pawn." << std::endl;
+        std::cout << "Potential attacking squares: "
+                  << std::bitset<64>(potential_attacking_pawn_squares) << std::endl;
+        std::cout << "Actual opponent pawns:       "
+                  << std::bitset<64>(actual_opponent_pawns) << std::endl;
+        std::cout << "King attacked by pawn at:    "
+                  << std::bitset<64>(potential_attacking_pawn_squares & actual_opponent_pawns) << std::endl;
+        std::cout << "King colour:" << (side_to_move ? "Black" : "White") << std::endl;
+
+        std::cout << "White pawns:                 " << std::bitset<64>(bitboard_for_piece(b, PAWN | WHITE)) << std::endl;
+        std::cout << "Black pawns:                 " << std::bitset<64>(bitboard_for_piece(b, PAWN | BLACK)) << std::endl;
         return true;
     }
+
+
     // Knight attacks
     if (knight_attacks[king_sq] & bitboard_for_piece(b, KNIGHT | opponent_colour(b))) {
         // std::cout << "[king_in_check] King at " << square_idx_to_alg(king_sq) 
-                //   << " is attacked by knight" << std::endl;
+        //           << " is attacked by knight at " << square_idx_to_alg(knight_sq) << std::endl;
         return true;
     }
     // King attacks (for double check detection)
     if (king_attacks[king_sq] & bitboard_for_piece(b, KING | opponent_colour(b))) {
         // std::cout << "[king_in_check] King at " << square_idx_to_alg(king_sq)
-                //   << " is attacked by king" << std::endl;
+        //           << " is attacked by king" << std::endl;
         return true;
     }
     // Sliding piece attacks (rook, bishop, queen)
