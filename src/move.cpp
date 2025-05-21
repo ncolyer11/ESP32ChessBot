@@ -43,13 +43,15 @@ bool make_move_on_board(Board *b, Move move) {
     int from = move_from(move), to = move_to(move), flag = move_flag(move);
     Piece piece = b->squares[from];
     Piece captured = b->squares[to];
-    b->undo_state = {
-        captured,
-        b->castling_rights,
-        b->enpassant_square,
-        b->half_move_clock,
-        b->full_moves
-    };
+
+    // Save the current state before making the move
+    UndoState state_to_save;
+    state_to_save.castling_rights = b->castling_rights;
+    state_to_save.enpassant_square = b->enpassant_square;
+    state_to_save.half_move_clock = b->half_move_clock;
+    state_to_save.full_moves = b->full_moves;
+    state_to_save.captured_piece = captured;
+    b->undo_state_stack.push_back(state_to_save);
 
     if (flag >= PROMOTION_QUEEN_FLAG && flag <= PROMOTION_BISHOP_FLAG) {
         apply_promotion_move(b, from, to, piece, captured, flag);
@@ -94,12 +96,21 @@ bool make_move_on_board(Board *b, Move move) {
  * @param move The move to be undone in algebraic notation (e.g., "d2d4", or e7e8q for a promotion).
  */
 void unmake_move_on_board(Board *b, Move move) {
+    // Ensure there's a state to pop
+    if (b->undo_state_stack.empty()) {
+        std::cerr << "ERROR: Undo stack is empty during unmake move operation." << std::endl;
+        return; 
+    }
     int from = move_from(move);
     int to = move_to(move);
     int flag = move_flag(move);
 
+    // Pop the previous state from the stack
+    UndoState restored_state = b->undo_state_stack.back();
+    b->undo_state_stack.pop_back();
+
     Piece moved = b->squares[to];
-    Piece captured = b->undo_state.captured_piece;
+    Piece captured = restored_state.captured_piece;
 
     // Reverse piece‐placement
     if (flag >= PROMOTION_QUEEN_FLAG && flag <= PROMOTION_BISHOP_FLAG) {
@@ -113,10 +124,10 @@ void unmake_move_on_board(Board *b, Move move) {
     }
 
     // Restore params
-    b->castling_rights = b->undo_state.castling_rights;
-    b->enpassant_square = b->undo_state.enpassant_square;
-    b->half_move_clock = b->undo_state.half_move_clock;
-    b->full_moves = b->undo_state.full_moves;
+    b->castling_rights = restored_state.castling_rights;
+    b->enpassant_square = restored_state.enpassant_square;
+    b->half_move_clock = restored_state.half_move_clock;
+    b->full_moves = restored_state.full_moves;
     b->side_to_move ^= 1;
 }
 
@@ -300,7 +311,7 @@ std::string move_to_move_str(Move move) {
             case PROMOTION_KNIGHT_FLAG: promo_char = 'n'; break;
             case PROMOTION_ROOK_FLAG: promo_char = 'r'; break;
             case PROMOTION_BISHOP_FLAG: promo_char = 'b'; break;
-            default: promo_char = '?'; break;
+            default: promo_char = '?';
         }
         move_str += promo_char;
     }

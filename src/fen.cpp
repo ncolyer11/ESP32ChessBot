@@ -115,7 +115,7 @@ std::string choose_fen() {
 void ask_export_fen(Board *b) {
     std::cout << "Export final position to FEN? (Y/n): ";
     std::string input;
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // flush remaining newline
+    // std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // flush remaining newline
     std::getline(std::cin, input);
     if (input.empty() || tolower(input[0]) == 'y') {
         std::cout << "FEN: " << export_position_to_fen(b) << std::endl;

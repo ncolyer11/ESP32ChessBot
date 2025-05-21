@@ -1,12 +1,13 @@
 #include <cstdlib>
 
 #include "eval.h"
+#include "fen.h"
 #include "movegen.h"
-#include "search.h"
+#include "chess_search.h"
 
 int search(Board *b, int depth, int alpha, int beta);
 void sort_moves(Board *b, MoveList* move_list);
-Move find_best_move(Board *b, int depth);
+Move find_best_move(Board *b, MoveList *move_list, int depth);
 
 // infinities
 constexpr int pos_infinity = 10000000;
@@ -30,92 +31,72 @@ constexpr int neg_infinity = -pos_infinity;
  *   Call after generate_moves() and filter_legal_moves() to pick a random move.
  */
 Move get_next_bot_move(Board *b, int depth) {
-    Move chosen_move = find_best_move(b, depth);
+    MoveList move_list = { {}, 0 };
+    Move chosen_move = find_best_move(b, &move_list, depth);
+    if (!check_end_game_conditions(b, move_list.count)) return NO_MOVES;
     std::string move_str = move_to_move_str(chosen_move);
     std::string colour_to_move = (b->side_to_move == 0 ? "White" : "Black");
     std::cout << "Chesp32 (" << colour_to_move << ") plays: " << move_str << std::endl;
     return chosen_move;
 }
 
-// Assumes legal_move_list is an array or vector of Move, and legal_move_count is its size
-Move random_search(const Move* legal_move_list, int legal_move_count) {
-    int random = std::rand();
-    int idx = random % legal_move_count;
-    Move chosen_move = legal_move_list[idx];
-    return chosen_move;
-}
-
-Move find_best_move(Board *b, int depth) {
-    MoveList move_list = { {}, 0 };
-    generate_moves(b, &move_list);
-    std::cout << "Moves before sorting:" << std::endl;
-    for (int i = 0; i < move_list.count; ++i) {
-        std::cout << move_to_move_str(move_list.moves[i]) << " ";
-    }
-    std::cout << std::endl;
-    sort_moves(b, &move_list);
-    std::cout << "Moves after sorting:" << std::endl;
-    for (int i = 0; i < move_list.count; ++i) {
-        std::cout << move_to_move_str(move_list.moves[i]) << " ";
-    }
-    std::cout << std::endl;
+Move find_best_move(Board *b, MoveList *move_list, int depth) {
+    generate_moves(b, move_list);
+    sort_moves(b, move_list);
 
     int alpha = neg_infinity;
     int beta = pos_infinity;
     Move best_move = -1;
 
-    std::cout << "Searching for best move at depth " << depth << "..." << std::endl;
-    for (int i = 0; i < move_list.count; ++i) {
-        Move move = move_list.moves[i];
+    // std::cout << "Searching for best move at depth " << depth << "..." << std::endl;
+    for (int i = 0; i < move_list->count; ++i) {
+        Move move = move_list->moves[i];
         std::string move_str = move_to_move_str(move);
-        std::cout << "Evaluating move: " << move_str << std::endl;
 
         make_move_on_board(b, move);
         int score = -search(b, depth - 1, -beta, -alpha);
         unmake_move_on_board(b, move);
 
-        std::cout << "Move " << move_str << " has score " << score << std::endl;
-
+        // std::cout << "Move " << move_str << " has score " << score << std::endl;
         if (score > alpha) {
             alpha = score;
             best_move = move;
-            std::cout << "New best move: " << move_str << " with score " << score << std::endl;
         }
     }
 
-    std::cout << "Best move found: " << move_to_move_str(best_move) << " with score " << alpha << std::endl;
+    // std::cout << "Best move found: " << move_to_move_str(best_move) << " with score " << alpha << std::endl;
     return best_move;
 }
 
 int search(Board *b, int depth, int alpha, int beta) {
-    std::cout << "search(depth=" << depth << "), side to move: " 
-              << b->side_to_move << ", alpha: " << alpha << ", beta: " << beta << std::endl;
     if (depth == 0) {
         return evaluate(b);
     }
 
     MoveList move_list;
     generate_moves(b, &move_list);
-    std::cout << "Move count: " << move_list.count << std::endl;
-
+    // std::cout << "Move count: " << move_list.count << std::endl;
+    // std::cout << "Moves (d, s, a, b: " << depth << ", " << b->side_to_move << ", " 
+    //           << alpha << ", " << beta << "): ";
+    
     if (move_list.count == 0) {
-        std::cout << "No legal moves available." << std::endl;
         if (king_in_check(b)) {
             return neg_infinity; // Checkmate
         }
         return 0; // Stalemate
     }
-
+    
     // Heuristically presort moves to have relatively better ones first
     sort_moves(b, &move_list);
     for (int i = 0; i < move_list.count; ++i) {
         Move move = move_list.moves[i];
+        std::string move_str = move_to_move_str(move);
+        
         make_move_on_board(b, move);
         int eval = -search(b, depth - 1, -beta, -alpha);
         unmake_move_on_board(b, move);
         if (eval >= beta) {
-            // Move is better for the opponent, prune the search
-            return beta;
+            return beta; // Move is better for the opponent, prune the search
         }
         alpha = std::max(alpha, eval);
     }
@@ -152,10 +133,13 @@ void sort_moves(Board *b, MoveList* move_list) {
         // Store the score
         move_scores[i] = est_move_score;
     }
-    std::cout << "Move scores: ";
-    for (int i = 0; i < move_list->count; i++) {
-        std::cout << move_scores[i] << " ";
-    }
     // Sort the moves based on their scores using quick sort
     quicksort_moves(move_list->moves, move_scores, 0, move_list->count - 1);
+}
+
+Move random_search(Move *legal_move_list, int legal_move_count) {
+    int random = std::rand();
+    int idx = random % legal_move_count;
+    Move chosen_move = legal_move_list[idx];
+    return chosen_move;
 }

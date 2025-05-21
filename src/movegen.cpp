@@ -8,7 +8,7 @@
 #include "move.h"
 #include "movegen.h"
 #include "piece.h"
-#include "search.h"
+#include "chess_search.h"
 #include "util.h"
 
 // Precomputed attack bitboards

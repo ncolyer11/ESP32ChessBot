@@ -6,16 +6,15 @@
 
 #include "movegen.h" // advanced logic for generating all moves and picking the best one
 #include "fen.h"
-#include "search.h"
+#include "chess_search.h"
 #include "util.h"
 
 // https://lichess.org/editor
 // chcp 65001 to fix unicode in cmd
 
-constexpr int DEPTH = 1; // depth for the bot to search
+constexpr int DEPTH = 6; // depth for the bot to search
 
 void play(Board *b);
-Move get_next_bot_move(Board *b, int depth); // this shouldn't be needed but it removes squiggly lines
 
 int main() {
     check_for_test_mode();
