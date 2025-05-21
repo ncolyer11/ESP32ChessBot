@@ -1,8 +1,8 @@
 #include <cstdlib>
 #include <limits>
 
-#include "movegen.h"
 #include "eval.h"
+#include "movegen.h"
 #include "search.h"
 
 // Assumes legal_move_list is an array or vector of Move, and legal_move_count is its size
@@ -17,7 +17,30 @@ Move random_search(const Move* legal_move_list, int legal_move_count) {
     return chosen_move;
 }
 
-int search(int depth) {
+Move find_best_move(int depth) {
+    MoveList move_list = generate_moves_arr();
+    sort_moves(&move_list);
+
+    int alpha = std::numeric_limits<int>::min();
+    int beta = std::numeric_limits<int>::max();
+    Move best_move = 0;
+
+    for (int i = 0; i < move_list.count; ++i) {
+        Move move = move_list.moves[i];
+        make_move_on_board(&board, move);
+        int score = -search(depth - 1, -beta, -alpha);
+        unmake_move_on_board(&board, move);
+
+        if (score > alpha) {
+            alpha = score;
+            best_move = move;
+        }
+    }
+
+    return best_move;
+}
+
+int search(int depth, int alpha, int beta) {
     if (depth == 0) {
         return evaluate();
     }
@@ -25,21 +48,60 @@ int search(int depth) {
     MoveList move_list = generate_moves_arr();
     if (move_list.count == 0) {
         if (king_in_check(&board, board.side_to_move)) {
-            return std::numeric_limits<int>::min(); // Checkmate
+            return std::numeric_limits<int>::min(); // Checkmate -> -infinity
         }
         return 0; // Stalemate
     }
 
-    int best_eval = std::numeric_limits<int>::min();
+    // Heuristically presort moves to have relatively better ones first
+    sort_moves(&move_list);
     for (int i = 0; i < move_list.count; ++i) {
         Move move = move_list.moves[i];
         make_move_on_board(&board, move);
-        int eval = -search(depth - 1);
-        best_eval = std::max(best_eval, eval);
+        int eval = -search(depth - 1, -beta, -alpha);
         unmake_move_on_board(&board, move);
+        if (eval >= beta) {
+            // Move is better for the opponent, prune the search
+            return beta;
+        }
+        alpha = std::max(alpha, eval);
     }
 
-    return best_eval;
+    return alpha;
+}
+
+// Prioritise captures and checks
+void sort_moves(MoveList* move_list) {
+    int move_scores[move_list->count];
+    for (int i = 0; i < move_list->count; i++) {
+        Move move = move_list->moves[i];
+        int est_move_score = 0;
+        Piece move_piece_type = board.squares[move_from(move)] & TYPE_MASK;
+        Piece capture_piece_type = board.squares[move_to(move)] & TYPE_MASK;
+
+        // Good value trades are preferred
+        if (capture_piece_type != NONE) {
+            est_move_score = 9 * simple_base_values[capture_piece_type] 
+                               - simple_base_values[move_piece_type];
+        }
+
+        // As well as promotions
+        switch (move_flag(move)) {
+            case PROMOTION_QUEEN_FLAG:   est_move_score += simple_base_values[QUEEN];   break;
+            case PROMOTION_KNIGHT_FLAG:  est_move_score += simple_base_values[KNIGHT];  break;
+            case PROMOTION_ROOK_FLAG:    est_move_score += simple_base_values[ROOK];    break;
+            case PROMOTION_BISHOP_FLAG:  est_move_score += simple_base_values[BISHOP];  break;
+        }
+
+        // And moving a piece to where a pawn can attack it is also a bad idea
+        // ... todo
+
+        // Store the score
+        move_scores[i] = est_move_score;
+    }
+
+    // Sort the moves based on their scores using quick sort
+    quicksort_moves(move_list->moves, move_scores, 0, move_list->count - 1);
 }
 
 /**
@@ -60,15 +122,7 @@ int search(int depth) {
  *   Call after generate_moves() and filter_legal_moves() to pick a random move.
  */
 Move get_next_bot_move() {
-    // Generate all legal moves
-    if (gen_and_validate_all_moves() == NO_MOVES) return NO_MOVES;
-
-    // std::cout << "Available legal moves: " << legal_move_count << ::endl;
-    // for (int i = 0; i < legal_move_count; ++i) {
-    //     std::string move_str = move_to_move_str(legal_move_list[i]);
-    //     std::cout << "Legal move: " << move_str << std::endl;
-    // }
-
+    Move chosen_move = find_best_move(5);
     std::string move_str = move_to_move_str(chosen_move);
     std::string colour_to_move = (board.side_to_move == 0 ? "White" : "Black");
     std::cout << "Chesp32 (" << colour_to_move << ") plays: " << move_str << std::endl;

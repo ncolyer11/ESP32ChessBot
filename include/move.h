@@ -8,6 +8,15 @@
 // Move encoding: bits 0-5: from, bits 6-11: to, bits 12-15: flag
 typedef uint16_t Move;
 
+constexpr const int ENPASSANT_FLAG = 1;
+constexpr const int CASTLING_FLAG = 2;
+constexpr const int PROMOTION_FLAG = 3;
+constexpr const int PROMOTION_QUEEN_FLAG = 3;
+constexpr const int PROMOTION_KNIGHT_FLAG = 4;
+constexpr const int PROMOTION_ROOK_FLAG = 5;
+constexpr const int PROMOTION_BISHOP_FLAG = 6;
+constexpr const int DOUBLE_PAWN_FLAG = 7;
+
 constexpr const Move INVALID_MOVE = 0xFFFF;
 constexpr const Move NO_MOVES = 0x0000;
 
@@ -51,3 +60,5 @@ bool king_in_check_after_move(int from, int to);
 std::string move_to_move_str(Move move);
 Move move_str_to_move(std::string move_str);
 bool validate_move_encoding(Move move);
+
+void quicksort_moves(Move *moves, int *scores, int low, int high);

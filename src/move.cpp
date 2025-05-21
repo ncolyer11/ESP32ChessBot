@@ -12,6 +12,9 @@ void undo_promotion_move(Board *b, int from, int to, Piece moved, Piece captured
 void undo_en_passant_move(Board *b, int from, int to, Piece moved);
 void undo_castling_move(Board *b, int from, int to, Piece moved);
 
+int partition(Move *moves, int *scores, int low, int high);
+
+
 /** TODO: UPDATE TO DOCSTRING TO MATCH NEW MAKE MOVE FUNC
  * @brief Modifies the internal board state based on the move provided.
  *
@@ -398,4 +401,27 @@ void undo_castling_move(Board *b, int from, int to, Piece king) {
     b->squares[rook_from] = rook;
     b->squares[rook_to] = NONE;
     b->bitboards[piece_to_bitboard_idx(rook)] ^= (1ULL << rook_from) | (1ULL << rook_to);
+}
+
+// quicksort function
+void quicksort_moves(Move *moves, int *scores, int low, int high) {
+    if (low < high) {
+        int pi = partition(moves, scores, low, high);
+        quicksort_moves(moves, scores, low, pi - 1);
+        quicksort_moves(moves, scores, pi + 1, high);
+    }
+}
+
+int partition(Move *moves, int *scores, int low, int high) {
+    int pivot = scores[moves[high]];
+    int i = (low - 1);
+    for (int j = low; j < high; j++) {
+        if (scores[moves[j]] > pivot) { // Change to < for descending order
+            i++;
+            std::swap(moves[i], moves[j]);
+            std::swap(scores[i], scores[j]);
+        }
+    }
+    std::swap(moves[i + 1], moves[high]);
+    return (i + 1);
 }
