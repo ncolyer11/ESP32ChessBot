@@ -274,18 +274,18 @@ bool king_in_check(Board *b) {
     // Now, check if any opponent pawns actually occupy these potential attacking squares
     U64 actual_opponent_pawns = bitboard_for_piece(b, PAWN | opponent_color);
     if (potential_attacking_pawn_squares & actual_opponent_pawns) {
-        std::cout << "[king_in_check] King at " << square_idx_to_alg(king_sq)
-                  << " is attacked by pawn." << std::endl;
-        std::cout << "Potential attacking squares: "
-                  << std::bitset<64>(potential_attacking_pawn_squares) << std::endl;
-        std::cout << "Actual opponent pawns:       "
-                  << std::bitset<64>(actual_opponent_pawns) << std::endl;
-        std::cout << "King attacked by pawn at:    "
-                  << std::bitset<64>(potential_attacking_pawn_squares & actual_opponent_pawns) << std::endl;
-        std::cout << "King colour:" << (side_to_move ? "Black" : "White") << std::endl;
+        // std::cout << "[king_in_check] King at " << square_idx_to_alg(king_sq)
+        //           << " is attacked by pawn." << std::endl;
+        // std::cout << "Potential attacking squares: "
+        //           << std::bitset<64>(potential_attacking_pawn_squares) << std::endl;
+        // std::cout << "Actual opponent pawns:       "
+        //           << std::bitset<64>(actual_opponent_pawns) << std::endl;
+        // std::cout << "King attacked by pawn at:    "
+        //           << std::bitset<64>(potential_attacking_pawn_squares & actual_opponent_pawns) << std::endl;
+        // std::cout << "King colour:" << (side_to_move ? "Black" : "White") << std::endl;
 
-        std::cout << "White pawns:                 " << std::bitset<64>(bitboard_for_piece(b, PAWN | WHITE)) << std::endl;
-        std::cout << "Black pawns:                 " << std::bitset<64>(bitboard_for_piece(b, PAWN | BLACK)) << std::endl;
+        // std::cout << "White pawns:                 " << std::bitset<64>(bitboard_for_piece(b, PAWN | WHITE)) << std::endl;
+        // std::cout << "Black pawns:                 " << std::bitset<64>(bitboard_for_piece(b, PAWN | BLACK)) << std::endl;
         return true;
     }
 

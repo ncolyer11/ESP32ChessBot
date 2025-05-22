@@ -54,7 +54,7 @@ bool is_valid_move(Move *move, MoveList legal_move_list) {
         }
     }
 
-    std::cout << "Invalid move: " << move_to_move_str(*move) << std::endl;
+    // std::cout << "Invalid move: " << move_to_move_str(*move) << std::endl;
     return false;
 }
 
@@ -156,27 +156,6 @@ void init_attack_bitboards() {
             if (f < 7) pawn_attacks[1][sq] |= 1ULL << ((r-1)*8 + (f+1));
         }
     }
-    // print out bbs
-    for (int sq = 0; sq < 64; sq++) {
-        std::cout << "Knight attacks for square " << square_idx_to_alg(sq) << ": "
-                  << std::bitset<64>(knight_attacks[sq]) << std::endl;
-    }
-    std::cout << std::endl;
-    for (int sq = 0; sq < 64; sq++) {
-        std::cout << "King attacks for square " << square_idx_to_alg(sq) << ": "
-                  << std::bitset<64>(king_attacks[sq]) << std::endl;
-    }
-    std::cout << std::endl;
-    for (int sq = 0; sq < 64; sq++) {
-        std::cout << "White pawn attacks for square " << square_idx_to_alg(sq) << ": "
-                  << std::bitset<64>(pawn_attacks[0][sq]) << std::endl;
-    }
-    std::cout << std::endl;
-    for (int sq = 0; sq < 64; sq++) {
-        std::cout << "Black pawn attacks for square " << square_idx_to_alg(sq) << ": "
-                  << std::bitset<64>(pawn_attacks[1][sq]) << std::endl;
-    }
-    std::cout << std::endl;
 }
 
 // -- King moves (not castling) --

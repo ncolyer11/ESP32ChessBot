@@ -1,5 +1,7 @@
+#include <bitset>
 #include <cstdint>
 #include <iostream>
+#include <iomanip>
 #include <string>
 
 #include "piece.h"

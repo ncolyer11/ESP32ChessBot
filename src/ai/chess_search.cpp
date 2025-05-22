@@ -1,9 +1,10 @@
 #include <cstdlib>
 
+#include "chess_search.h"
 #include "eval.h"
 #include "fen.h"
 #include "movegen.h"
-#include "chess_search.h"
+#include "util.h"
 
 int search(Board *b, int depth, int alpha, int beta);
 void sort_moves(Board *b, MoveList* move_list);
@@ -12,6 +13,19 @@ Move find_best_move(Board *b, MoveList *move_list, int depth);
 // infinities
 constexpr int pos_infinity = 10000000;
 constexpr int neg_infinity = -pos_infinity;
+
+// Store the last 5 sets of 12 bitboards for debugging or analysis
+U64 bitboard_history[BITBOARD_HISTORY_SIZE][2] = {0};
+Board b_history[BITBOARD_HISTORY_SIZE] = {};
+int bitboard_history_index = 0;
+
+void add_to_bitboard_history(Board *b, Board b_history[BITBOARD_HISTORY_SIZE], U64 white_pawns, 
+                             U64 black_pawns) {
+    bitboard_history[bitboard_history_index][0] = white_pawns;
+    bitboard_history[bitboard_history_index][1] = black_pawns;
+    b_history[bitboard_history_index] = *b;
+    bitboard_history_index = (bitboard_history_index + 1) % BITBOARD_HISTORY_SIZE;
+}
 
 /**
  * @brief Generates all legal moves for the current board position (using the global board), 
@@ -53,10 +67,22 @@ Move find_best_move(Board *b, MoveList *move_list, int depth) {
     for (int i = 0; i < move_list->count; ++i) {
         Move move = move_list->moves[i];
         std::string move_str = move_to_move_str(move);
-
+        // print_board(b, true, true);
+        add_to_bitboard_history(b, b_history, b->bitboards[1], b->bitboards[7]);
+        exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index);
+        
         make_move_on_board(b, move);
+        add_to_bitboard_history(b, b_history, b->bitboards[1], b->bitboards[7]);
+        // print_board(b, true, true);
+        exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index);
+
         int score = -search(b, depth - 1, -beta, -alpha);
+        // print_board(b, true, true);
+        exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index);
+
         unmake_move_on_board(b, move);
+        // print_board(b, true, true);
+        exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index);
 
         // std::cout << "Move " << move_str << " has score " << score << std::endl;
         if (score > alpha) {
@@ -82,7 +108,6 @@ int search(Board *b, int depth, int alpha, int beta) {
     
     if (move_list.count == 0) {
         if (king_in_check(b)) {
-            std::cout << "CHECKMATE at depth " << depth << std::endl;
             return neg_infinity; // Checkmate
         }
         return 0; // Stalemate
@@ -90,13 +115,27 @@ int search(Board *b, int depth, int alpha, int beta) {
     
     // Heuristically presort moves to have relatively better ones first
     sort_moves(b, &move_list);
+    // std::cout << " Searching at depth " << depth << " with " << move_list.count << " moves." << std::endl;
     for (int i = 0; i < move_list.count; ++i) {
         Move move = move_list.moves[i];
         std::string move_str = move_to_move_str(move);
+        // print_board(b, true, true);
+        add_to_bitboard_history(b, b_history, b->bitboards[1], b->bitboards[7]);
+        exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index);
         
         make_move_on_board(b, move);
+        add_to_bitboard_history(b, b_history, b->bitboards[1], b->bitboards[7]);
+        // print_board(b, true, true);
+        exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index);
+
         int eval = -search(b, depth - 1, -beta, -alpha);
+        // print_board(b, true, true);
+        exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index);
+
         unmake_move_on_board(b, move);
+        // print_board(b, true, true);
+        exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index);
+
         if (eval >= beta) {
             return beta; // Move is better for the opponent, prune the search
         }

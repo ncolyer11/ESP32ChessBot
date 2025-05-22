@@ -32,3 +32,6 @@ void init_board(Board *b);
 void print_board(Board *b, bool show_params = false, bool show_bitboards = false);
 void print_params(Board *b);
 void print_bitboards(Board *b);
+
+void print_bitboard_history(Board b_history[BITBOARD_HISTORY_SIZE], U64 bitboard_history[BITBOARD_HISTORY_SIZE][2], int bitboard_history_index);
+void exit_if_corrupt_bits(Board *b, Board b_history[BITBOARD_HISTORY_SIZE], U64 bitboard_history[BITBOARD_HISTORY_SIZE][2], int bitboard_history_index);

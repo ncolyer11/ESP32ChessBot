@@ -95,3 +95,62 @@ void print_bitboards(Board *b) {
         std::cout << PIECE_NAMES[i] << ": " << std::bitset<64>(b->bitboards[i]) << std::endl;
     }
 }
+
+void print_bitboard_history(Board b_history[BITBOARD_HISTORY_SIZE], 
+                            U64 bitboard_history[BITBOARD_HISTORY_SIZE][2], int bitboard_history_index) {
+    std::cout << "Bitboard History (Oldest to Newest):" << std::endl;
+    // Start from the element *after* the current index.
+    // This is the oldest element that is still in the buffer if the buffer is full.
+    // If the buffer is not yet full, elements before the index will be 0.
+    int start_index = bitboard_history_index;
+
+    std::cout << "  White Bitboards:" << std::endl;
+    for (int i = 0; i < BITBOARD_HISTORY_SIZE; ++i) {
+        int current_read_index = (start_index + i) % BITBOARD_HISTORY_SIZE;
+        U64 white_bb = bitboard_history[current_read_index][0];
+        if (white_bb != 0) {
+            std::cout << "    [" << i << "] 0b" << std::bitset<64>(white_bb) << std::endl;
+        } else {
+            std::cout << "    [" << i << "] (Empty/Initial)" << std::endl;
+        }
+    }
+    std::cout << "  Black Bitboards:" << std::endl;
+    for (int i = 0; i < BITBOARD_HISTORY_SIZE; ++i) {
+        int current_read_index = (start_index + i) % BITBOARD_HISTORY_SIZE;
+        U64 black_bb = bitboard_history[current_read_index][1];
+        if (black_bb != 0) {
+            std::cout << "    [" << i << "] 0b" << std::bitset<64>(black_bb) << std::endl;
+        } else {
+            std::cout << "    [" << i << "] (Empty/Initial)" << std::endl;
+        }
+    }
+    std::cout << "  Board History:" << std::endl;
+    for (int i = 0; i < BITBOARD_HISTORY_SIZE; ++i) {
+        int current_read_index = (start_index + i) % BITBOARD_HISTORY_SIZE;
+        std::cout << "    [" << i << "] " << std::endl;
+        print_board(&b_history[current_read_index], true, true);
+    }
+    std::cout << "------------------------------------" << std::endl;
+}
+
+
+void exit_if_corrupt_bits(Board *b, Board b_history[BITBOARD_HISTORY_SIZE], 
+                          U64 bitboard_history[BITBOARD_HISTORY_SIZE][2], int bitboard_history_index) {
+    // Print out both pawn bitboards
+    for (int i = 1; i <= 7; i += 6) {
+        U64 bb = b->bitboards[i];
+        int count = 0;
+        U64 og_bb = bb;
+        while (bb > 0) {
+            bb &= (bb - 1); // Clear the least significant set bit
+            count++;
+            // Early exit: If we already have more than 8 bits, no need to count further
+            if (count > 8) {
+                std::cerr << "Corrupted bitboard: " << std::bitset<64>(og_bb) << std::endl;
+                std::cerr << "Exiting..." << std::endl;
+                print_bitboard_history(b_history, bitboard_history, bitboard_history_index);
+                exit(1);
+            }
+        }
+    }
+}
