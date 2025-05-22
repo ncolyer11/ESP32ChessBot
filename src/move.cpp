@@ -23,14 +23,15 @@ void undo_castling_move(Board *b, int from, int to, Piece moved);
 int partition(Move *moves, int *scores, int low, int high);
 
 
-/** TODO: UPDATE TO DOCSTRING TO MATCH NEW MAKE MOVE FUNC
+/** 
  * @brief Modifies the internal board state based on the move provided.
  *
  * This function updates the board state, including the side to move, castling rights,
  * en passant square, half-move clock, and full move number.
  * 
- * The function also checks for checkmate and stalemate conditions after the move and ends the game
- * accordingly.
+ * It also saves the current state of the board before making the move, allowing for
+ * undoing the move later.
+ * 
  * @param b The board struct, passed by reference, to make the move on
  * @param move The move to be made in algebraic notation (e.g., "d2d4", or e7e8q for a promotion).
  * 
@@ -47,18 +48,14 @@ bool make_move_on_board(Board *b, Move move) {
 
     // Save the current state before making the move
     UndoState state_to_save;
+    state_to_save.side_to_move = b->side_to_move;
     state_to_save.castling_rights = b->castling_rights;
     state_to_save.enpassant_square = b->enpassant_square;
     state_to_save.half_move_clock = b->half_move_clock;
     state_to_save.full_moves = b->full_moves;
     state_to_save.captured_piece = captured;
-    state_to_save.side_to_move = b->side_to_move;
     b->undo_state_stack.push_back(state_to_save);
-    // if (b->squares[54] == (PAWN | WHITE)) {
-    //     // error this pawn should not be here print move:
-    //     std::cout << "Pawn should not be here B4: " << square_idx_to_alg(54) << std::endl;
-    //     std::cout << "Move: " << square_idx_to_alg(from) << " to " << square_idx_to_alg(to) << std::endl;
-    // }
+
     if (flag >= PROMOTION_QUEEN_FLAG && flag <= PROMOTION_BISHOP_FLAG) {
         apply_promotion_move(b, from, to, piece, captured, flag);
     } else if (flag == ENPASSANT_FLAG) {
@@ -84,11 +81,7 @@ bool make_move_on_board(Board *b, Move move) {
     }
     if (!(b->side_to_move)) b->full_moves++;
     b->side_to_move ^= 1;
-    // if (b->squares[54] == (PAWN | WHITE)) {
-    //     // error this pawn should not be here print move:
-    //     std::cout << "Pawn should not be here A4: " << square_idx_to_alg(54) << std::endl;
-    //     std::cout << "Move: " << square_idx_to_alg(from) << " to " << square_idx_to_alg(to) << std::endl;
-    // }
+
     return true;
 }
 
@@ -139,15 +132,6 @@ void unmake_move_on_board(Board *b, Move move) {
     } else {
         undo_normal_move(b, from, to, moved, captured);
     }
-
-
-    // if (b->squares[54] == (PAWN | WHITE)) {
-    //     // error this pawn should not be here print move:
-    //     std::cout << "Pawn should not be here V4: " << square_idx_to_alg(54) << std::endl;
-    //     std::cout << "Move: " << square_idx_to_alg(from) << " to " << square_idx_to_alg(to) << std::endl;
-    //     std::cout << "From square (" << square_idx_to_alg(from) << ") contains: " << int(b->squares[from]) << std::endl;
-    //     std::cout << "To square (" << square_idx_to_alg(to) << ") contains: " << int(b->squares[to]) << std::endl;
-    // }
 }
 
 // -- Helpers --
@@ -158,12 +142,6 @@ void apply_normal_move(Board *b, int from, int to, Piece piece, Piece captured) 
     if (captured != NONE) {
         b->bitboards[piece_to_bitboard_idx(captured)] ^= (1ULL << to);
     }
-
-    // if (b->squares[54] == (PAWN | WHITE)) {
-    //     // error this pawn should not be here print move:
-    //     std::cout << "Pawn should not be here: " << square_idx_to_alg(54) << std::endl;
-    //     std::cout << "Move: " << square_idx_to_alg(from) << " to " << square_idx_to_alg(to) << std::endl;
-    // }
 }
 
 void apply_promotion_move(Board *b, int from, int to, Piece piece, Piece captured, int flag) {
@@ -204,22 +182,18 @@ void apply_castling_move(Board *b, int from, int to, Piece king) {
 
     // Move rook
     if (to == 6) { // White kingside
-        // std::cout << "[apply_castling_move] White kingside rook moves from h1 to f1" << std::endl;
         b->squares[5] = (ROOK | WHITE);
         b->squares[7] = NONE;
         b->bitboards[piece_to_bitboard_idx(ROOK | WHITE)] ^= (1ULL << 5) | (1ULL << 7);
     } else if (to == 2) { // White queenside
-        // std::cout << "[apply_castling_move] White queenside rook moves from a1 to d1" << std::endl;
         b->squares[3] = (ROOK | WHITE);
         b->squares[0] = NONE;
         b->bitboards[piece_to_bitboard_idx(ROOK | WHITE)] ^= (1ULL << 3) | (1ULL << 0);
     } else if (to == 62) { // Black kingside
-        // std::cout << "[apply_castling_move] Black kingside rook moves from h8 to f8" << std::endl;
         b->squares[61] = (ROOK | BLACK);
         b->squares[63] = NONE;
         b->bitboards[piece_to_bitboard_idx(ROOK | BLACK)] ^= (1ULL << 61) | (1ULL << 63);
     } else if (to == 58) { // Black queenside
-        // std::cout << "[apply_castling_move] Black queenside rook moves from a8 to d8" << std::endl;
         b->squares[59] = (ROOK | BLACK);
         b->squares[56] = NONE;
         b->bitboards[piece_to_bitboard_idx(ROOK | BLACK)] ^= (1ULL << 59) | (1ULL << 56);
@@ -268,7 +242,6 @@ bool king_in_check(Board *b) {
     int king_sq = bit_scan_forward(king_bb);
     uint8_t opponent_color = side_to_move ? WHITE : BLACK;
 
-
     // --- Pawn attacks ---
     // Calculate the squares from which an opponent's pawn could attack the king
     U64 potential_attacking_pawn_squares = 0ULL;
@@ -298,21 +271,8 @@ bool king_in_check(Board *b) {
     // Now, check if any opponent pawns actually occupy these potential attacking squares
     U64 actual_opponent_pawns = bitboard_for_piece(b, PAWN | opponent_color);
     if (potential_attacking_pawn_squares & actual_opponent_pawns) {
-        // std::cout << "[king_in_check] King at " << square_idx_to_alg(king_sq)
-        //           << " is attacked by pawn." << std::endl;
-        // std::cout << "Potential attacking squares: "
-        //           << std::bitset<64>(potential_attacking_pawn_squares) << std::endl;
-        // std::cout << "Actual opponent pawns:       "
-        //           << std::bitset<64>(actual_opponent_pawns) << std::endl;
-        // std::cout << "King attacked by pawn at:    "
-        //           << std::bitset<64>(potential_attacking_pawn_squares & actual_opponent_pawns) << std::endl;
-        // std::cout << "King colour:" << (side_to_move ? "Black" : "White") << std::endl;
-
-        // std::cout << "White pawns:                 " << std::bitset<64>(bitboard_for_piece(b, PAWN | WHITE)) << std::endl;
-        // std::cout << "Black pawns:                 " << std::bitset<64>(bitboard_for_piece(b, PAWN | BLACK)) << std::endl;
         return true;
     }
-
 
     // Knight attacks
     if (knight_attacks[king_sq] & bitboard_for_piece(b, KNIGHT | opponent_colour(b))) {
@@ -436,7 +396,7 @@ void undo_normal_move(Board *b, int from, int to, Piece moved, Piece captured) {
 }
 
 void undo_promotion_move(Board *b, int from, int to, Piece moved, Piece captured) {
-    // moved is the promoted piece; original pawn = (PAWN|colour)
+    // moved is the promoted piece; original pawn = (PAWN | colour)
     Piece pawn = PAWN | (moved & COLOUR_MASK);
     b->squares[from] = pawn;
     b->squares[to] = captured;
@@ -449,35 +409,15 @@ void undo_promotion_move(Board *b, int from, int to, Piece moved, Piece captured
 }
 
 void undo_en_passant_move(Board *b, int from, int to, Piece moved) {
-    // original move was a black pawn from f7 to g6
     bool was_white = !b->side_to_move;
     int ep_capture_sq = to + (was_white ? -8 : 8);
     // restore pawn capture
     b->squares[from] = moved;
     b->squares[to] = NONE;
-    // if (ep_capture_sq == 54) {
-    //     std::cout << "===== Past board parameters =====" << std::endl;
-    //     // past state infoL
-    //     for (auto &state : b->undo_state_stack) {
-    //         std::cout << "Enpassant square: " << square_idx_to_alg(state.enpassant_square) << std::endl;
-    //         std::cout << "Full moves: " << (int)state.full_moves << std::endl;
-    //         std::cout << "Turn: " << (state.side_to_move ? "Black" : "White") << std::endl;
-    //         std::cout << "Captured piece: " << square_idx_to_alg(state.captured_piece) << std::endl << std::endl;
-    //     }
-    //     std::cout << "Current turn: " << (b->side_to_move ? "Black" : "White") << std::endl;
-    //     std::cout << "Current enpassant square: " << square_idx_to_alg(b->enpassant_square) << std::endl;
-    //     std::cout << "Current full moves: " << (int)b->full_moves << std::endl;
-    //     std::cout << "Attempted move: " << square_idx_to_alg(from) << " to " << square_idx_to_alg(to); 
-    //     std::cout << " -- for piece: " << (int)moved << std::endl;
-    //     exit(1);
-    // }
     b->squares[ep_capture_sq] = PAWN | (was_white ? BLACK : WHITE);
+    // restore bitboards
     int capture_bb_idx = piece_to_bitboard_idx(PAWN | (was_white ? BLACK : WHITE));
     b->bitboards[capture_bb_idx] |= (1ULL << ep_capture_sq);
-    if (ep_capture_sq == b->enpassant_square) {
-    }
-
-    // restore bitboards
     b->bitboards[piece_to_bitboard_idx(moved)] ^= (1ULL << from) | (1ULL << to);
 }
 
