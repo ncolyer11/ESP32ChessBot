@@ -26,7 +26,7 @@ struct Board {
     uint8_t half_move_clock; // number of half moves since last pawn move or capture
     uint16_t full_moves; // starts at 1 and increments after black moves
 
-    std::vector<UndoState> undo_state_stack; 
+    std::vector<UndoState> undo_state_stack;
 };
 
 void init_board(Board *b);

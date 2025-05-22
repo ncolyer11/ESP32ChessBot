@@ -22,6 +22,8 @@ void undo_castling_move(Board *b, int from, int to, Piece moved);
 
 int partition(Move *moves, int *scores, int low, int high);
 
+std::vector<Move> move_history;
+
 
 /** 
  * @brief Modifies the internal board state based on the move provided.
@@ -109,8 +111,7 @@ void unmake_move_on_board(Board *b, Move move) {
     int flag = move_flag(move);
 
     // Pop the previous state from the stack
-    UndoState restored_state = b->undo_state_stack.back();
-    b->undo_state_stack.pop_back();
+    UndoState restored_state = b->undo_state_stack.back(); b->undo_state_stack.pop_back();
 
     Piece moved = b->squares[to];
     Piece captured = restored_state.captured_piece;

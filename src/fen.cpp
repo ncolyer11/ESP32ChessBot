@@ -104,6 +104,7 @@ std::string choose_fen() {
         if (fen == "coverage") return coverage_fen;
         if (fen == "castle") return castling_fen;
         if (fen == "checkmate") return checkmate_fen;
+        if (fen == "takecheck") return take_out_of_check_fen;
     }
 
     if (std::regex_match(fen, fen_regex)) return fen;

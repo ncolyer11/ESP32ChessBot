@@ -16,6 +16,8 @@ struct MoveList {
     int count;
 };
 
+extern std::vector<Move> move_history; // For undos and debugging
+
 constexpr const int ENPASSANT_FLAG = 1;
 constexpr const int CASTLING_FLAG = 2;
 constexpr const int PROMOTION_FLAG = 3;

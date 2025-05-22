@@ -11,6 +11,10 @@
 
 // https://lichess.org/editor
 // chcp 65001 to fix unicode in cmd
+/** TODO: 
+ * - investigate pawn not being able to take bishop pinning it
+ * I think this is caused by legal_move_list not being updated
+ */
 
 constexpr int DEPTH = 6; // depth for the bot to search
 
@@ -55,6 +59,7 @@ void play(Board *b) {
         if (move == NO_MOVES) break;
 
         // Exit on invalid move, also switches players
+        move_history.push_back(move);
         if (!make_move_on_board(b, move)) break;
 
         // if (!player1_is_human && !player2_is_human) {

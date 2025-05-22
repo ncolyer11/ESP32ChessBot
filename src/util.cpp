@@ -15,11 +15,11 @@ bool player_types[2] = {player1_is_human, player2_is_human};
 
 void get_player_types() {
     std::string input;
-    std::cout << "Is player 1 human? (Y/n): ";
+    std::cout << "Is white human? (Y/n): ";
     std::getline(std::cin, input);
     player1_is_human = (input.empty() || tolower(input[0]) == 'y');
     player_types[0] = player1_is_human;
-    std::cout << "Is player 2 human? (Y/n): ";
+    std::cout << "Is black human? (Y/n): ";
     std::getline(std::cin, input);
     player2_is_human = (input.empty() || tolower(input[0]) == 'y');
     player_types[1] = player2_is_human;

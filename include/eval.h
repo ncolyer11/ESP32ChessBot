@@ -92,7 +92,7 @@ constexpr int eg_king_table[64] = {
 };
 
 // flip for black’s perspective
-static constexpr int flip_square(int square_idx) { return square_idx ^ 56; }
+static constexpr int flip_square(int square_idx) { return square_idx ^ 0b111000; }
 
 // endgame corner‐force bonus
 int force_king_to_corner_endgame_eval(int friendly_king_square,

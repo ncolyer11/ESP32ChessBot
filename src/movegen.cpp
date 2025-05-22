@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iostream>
+#include <algorithm>
 
 #include "board.h"
 #include "boardRepresentation.h"
@@ -17,6 +18,8 @@ uint64_t knight_attacks[64];
 uint64_t king_attacks[64];
 
 Move gen_and_validate_all_moves(Board *b, MoveList *legal_move_list);
+Move process_command_moves(Board *b, std::string move_str);
+
 
 // Request next move from the current player
 Move get_next_player_move(Board *b) {
@@ -32,10 +35,45 @@ Move get_next_player_move(Board *b) {
             std::cout << "Game ended prematurely by user." << std::endl;
             return INVALID_MOVE;
         }
+
+        Move cmd_move = process_command_moves(b, move_str);
+        if (cmd_move == INVALID_MOVE) {
+            return INVALID_MOVE;
+        } else if (cmd_move == NO_MOVES) {
+            return get_next_player_move(b);
+        }
+
         move = move_str_to_move(move_str);
     } while (!is_valid_move(&move, legal_move_list));
 
     return move;
+}
+
+Move process_command_moves(Board *b, std::string move_str) {
+    // Convert move_str to lowercase for easier comparison
+    std::transform(move_str.begin(), move_str.end(), move_str.begin(), ::tolower);
+    if (move_str == "q") {
+        std::cout << "Game ended prematurely by user." << std::endl;
+        return INVALID_MOVE;
+    } else if (move_str == "r") {
+        std::cout << "Resigning..." << std::endl;
+        return INVALID_MOVE;
+    } else if (move_str == "u" || move_str == "z") {
+        if (move_history.size() < 2) {
+            std::cout << "No moves to undo." << std::endl;
+            return NO_MOVES;
+        }
+        Move last_move = move_history.back(); move_history.pop_back();
+        Move second_last_move = move_history.back(); move_history.pop_back();
+        unmake_move_on_board(b, last_move);
+        unmake_move_on_board(b, second_last_move);
+        std::cout << "Undoing last 2 plys (1 move): " << move_to_move_str(last_move)
+                  << " and " << move_to_move_str(second_last_move) << std::endl;
+        print_board(b, true, MODE);
+        return NO_MOVES;
+    }
+
+    return 1;
 }
 
 bool is_valid_move(Move *move, MoveList legal_move_list) {

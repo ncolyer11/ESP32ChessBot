@@ -14,22 +14,6 @@ Move find_best_move(Board *b, MoveList *move_list, int depth);
 constexpr int pos_infinity = 10000000;
 constexpr int neg_infinity = -pos_infinity;
 
-// Store the last 5 sets of 12 bitboards for debugging or analysis
-U64 bitboard_history[BITBOARD_HISTORY_SIZE][2] = {0};
-Board b_history[BITBOARD_HISTORY_SIZE] = {};
-Move move_history[BITBOARD_HISTORY_SIZE] = {};
-int bitboard_history_index = 0;
-
-void add_to_bitboard_history(Board *b, Board b_history[BITBOARD_HISTORY_SIZE], 
-    Move move_history[BITBOARD_HISTORY_SIZE], U64 white_pawns, U64 black_pawns, Move move) {
-    bitboard_history[bitboard_history_index][0] = white_pawns;
-    bitboard_history[bitboard_history_index][1] = black_pawns;
-    b_history[bitboard_history_index] = *b;
-    move_history[bitboard_history_index] = move;
-
-    bitboard_history_index = (bitboard_history_index + 1) % BITBOARD_HISTORY_SIZE;
-}
-
 /**
  * @brief Generates all legal moves for the current board position (using the global board), 
  * picks a random move from the legal move list, and returns it in algebraic notation.
@@ -69,7 +53,7 @@ Move find_best_move(Board *b, MoveList *move_list, int depth) {
     // std::cout << "Searching for best move at depth " << depth << "..." << std::endl;
     for (int i = 0; i < move_list->count; ++i) {
         Move move = move_list->moves[i];
-        std::string move_str = move_to_move_str(move);
+        // std::string move_str = move_to_move_str(move);
         
         make_move_on_board(b, move);
         int score = -search(b, depth - 1, -beta, -alpha);

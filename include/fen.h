@@ -15,6 +15,7 @@ static const std::string queens_fen = "rnbqkbnr/qpqqpqpp/7p/8/8/P7/PQQPPQQQ/RNBQ
 static const std::string coverage_fen = "r3kb1r/pp3bP1/3n4/1r6/1n1p4/R7/pKPQ1p1q/8 w q - 0 1";
 static const std::string castling_fen = "r3k1r1/1ppppp2/3r1p2/8/8/4PP2/1PP1PP2/R3K2R w KQkq - 0 1";
 static const std::string checkmate_fen = "k7/pp5R/8/8/8/8/8/K7 w - - 0 1";
+static const std::string take_out_of_check_fen = "1k6/ppp5/8/2b5/8/4BN2/1P2QPPP/5RK1 w - - 0 1";
 
 // Basic FEN regex: 6 space-separated fields, first field = at least 8 chars (for pieces/ranks)
 static const std::regex fen_regex(

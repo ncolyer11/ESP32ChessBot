@@ -47,8 +47,6 @@ int evaluate(Board *b) {
                 break;
             case KING:
                 base_value = 0; // King material value is 0
-                // For simplicity, using midgame king table for now. 
-                // You can re-introduce endgame king table based on game phase later.
                 positional_value = mg_king_table[table_idx]; 
                 break;
             default: break; 
