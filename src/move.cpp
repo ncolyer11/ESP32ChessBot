@@ -52,8 +52,13 @@ bool make_move_on_board(Board *b, Move move) {
     state_to_save.half_move_clock = b->half_move_clock;
     state_to_save.full_moves = b->full_moves;
     state_to_save.captured_piece = captured;
+    state_to_save.side_to_move = b->side_to_move;
     b->undo_state_stack.push_back(state_to_save);
-
+    // if (b->squares[54] == (PAWN | WHITE)) {
+    //     // error this pawn should not be here print move:
+    //     std::cout << "Pawn should not be here B4: " << square_idx_to_alg(54) << std::endl;
+    //     std::cout << "Move: " << square_idx_to_alg(from) << " to " << square_idx_to_alg(to) << std::endl;
+    // }
     if (flag >= PROMOTION_QUEEN_FLAG && flag <= PROMOTION_BISHOP_FLAG) {
         apply_promotion_move(b, from, to, piece, captured, flag);
     } else if (flag == ENPASSANT_FLAG) {
@@ -79,7 +84,11 @@ bool make_move_on_board(Board *b, Move move) {
     }
     if (!(b->side_to_move)) b->full_moves++;
     b->side_to_move ^= 1;
-
+    // if (b->squares[54] == (PAWN | WHITE)) {
+    //     // error this pawn should not be here print move:
+    //     std::cout << "Pawn should not be here A4: " << square_idx_to_alg(54) << std::endl;
+    //     std::cout << "Move: " << square_idx_to_alg(from) << " to " << square_idx_to_alg(to) << std::endl;
+    // }
     return true;
 }
 
@@ -101,7 +110,7 @@ void unmake_move_on_board(Board *b, Move move) {
     if (b->undo_state_stack.empty()) {
         std::cerr << "ERROR: Undo stack is empty during unmake move operation." << std::endl;
         return; 
-    }
+    }    
     int from = move_from(move);
     int to = move_to(move);
     int flag = move_flag(move);
@@ -112,6 +121,13 @@ void unmake_move_on_board(Board *b, Move move) {
 
     Piece moved = b->squares[to];
     Piece captured = restored_state.captured_piece;
+
+    // Restore params
+    b->castling_rights = restored_state.castling_rights;
+    b->enpassant_square = restored_state.enpassant_square;
+    b->half_move_clock = restored_state.half_move_clock;
+    b->full_moves = restored_state.full_moves;
+    b->side_to_move = restored_state.side_to_move;
 
     // Reverse piece‐placement
     if (flag >= PROMOTION_QUEEN_FLAG && flag <= PROMOTION_BISHOP_FLAG) {
@@ -124,12 +140,14 @@ void unmake_move_on_board(Board *b, Move move) {
         undo_normal_move(b, from, to, moved, captured);
     }
 
-    // Restore params
-    b->castling_rights = restored_state.castling_rights;
-    b->enpassant_square = restored_state.enpassant_square;
-    b->half_move_clock = restored_state.half_move_clock;
-    b->full_moves = restored_state.full_moves;
-    b->side_to_move ^= 1;
+
+    // if (b->squares[54] == (PAWN | WHITE)) {
+    //     // error this pawn should not be here print move:
+    //     std::cout << "Pawn should not be here V4: " << square_idx_to_alg(54) << std::endl;
+    //     std::cout << "Move: " << square_idx_to_alg(from) << " to " << square_idx_to_alg(to) << std::endl;
+    //     std::cout << "From square (" << square_idx_to_alg(from) << ") contains: " << int(b->squares[from]) << std::endl;
+    //     std::cout << "To square (" << square_idx_to_alg(to) << ") contains: " << int(b->squares[to]) << std::endl;
+    // }
 }
 
 // -- Helpers --
@@ -140,6 +158,12 @@ void apply_normal_move(Board *b, int from, int to, Piece piece, Piece captured) 
     if (captured != NONE) {
         b->bitboards[piece_to_bitboard_idx(captured)] ^= (1ULL << to);
     }
+
+    // if (b->squares[54] == (PAWN | WHITE)) {
+    //     // error this pawn should not be here print move:
+    //     std::cout << "Pawn should not be here: " << square_idx_to_alg(54) << std::endl;
+    //     std::cout << "Move: " << square_idx_to_alg(from) << " to " << square_idx_to_alg(to) << std::endl;
+    // }
 }
 
 void apply_promotion_move(Board *b, int from, int to, Piece piece, Piece captured, int flag) {
@@ -425,16 +449,36 @@ void undo_promotion_move(Board *b, int from, int to, Piece moved, Piece captured
 }
 
 void undo_en_passant_move(Board *b, int from, int to, Piece moved) {
-    bool was_black = (moved & BLACK);
-    int ep_capture_sq = to + (was_black ? 8 : -8);
+    // original move was a black pawn from f7 to g6
+    bool was_white = !b->side_to_move;
+    int ep_capture_sq = to + (was_white ? -8 : 8);
     // restore pawn capture
     b->squares[from] = moved;
     b->squares[to] = NONE;
-    b->squares[ep_capture_sq] = PAWN | (was_black ? WHITE : BLACK);
+    // if (ep_capture_sq == 54) {
+    //     std::cout << "===== Past board parameters =====" << std::endl;
+    //     // past state infoL
+    //     for (auto &state : b->undo_state_stack) {
+    //         std::cout << "Enpassant square: " << square_idx_to_alg(state.enpassant_square) << std::endl;
+    //         std::cout << "Full moves: " << (int)state.full_moves << std::endl;
+    //         std::cout << "Turn: " << (state.side_to_move ? "Black" : "White") << std::endl;
+    //         std::cout << "Captured piece: " << square_idx_to_alg(state.captured_piece) << std::endl << std::endl;
+    //     }
+    //     std::cout << "Current turn: " << (b->side_to_move ? "Black" : "White") << std::endl;
+    //     std::cout << "Current enpassant square: " << square_idx_to_alg(b->enpassant_square) << std::endl;
+    //     std::cout << "Current full moves: " << (int)b->full_moves << std::endl;
+    //     std::cout << "Attempted move: " << square_idx_to_alg(from) << " to " << square_idx_to_alg(to); 
+    //     std::cout << " -- for piece: " << (int)moved << std::endl;
+    //     exit(1);
+    // }
+    b->squares[ep_capture_sq] = PAWN | (was_white ? BLACK : WHITE);
+    int capture_bb_idx = piece_to_bitboard_idx(PAWN | (was_white ? BLACK : WHITE));
+    b->bitboards[capture_bb_idx] |= (1ULL << ep_capture_sq);
+    if (ep_capture_sq == b->enpassant_square) {
+    }
+
     // restore bitboards
     b->bitboards[piece_to_bitboard_idx(moved)] ^= (1ULL << from) | (1ULL << to);
-    int capture_bb_idx = piece_to_bitboard_idx(PAWN | (was_black ? WHITE : BLACK));
-    b->bitboards[capture_bb_idx] |= (1ULL << ep_capture_sq);
 }
 
 void undo_castling_move(Board *b, int from, int to, Piece king) {

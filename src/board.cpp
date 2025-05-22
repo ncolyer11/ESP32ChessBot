@@ -134,8 +134,8 @@ void print_bitboard_history(Board b_history[BITBOARD_HISTORY_SIZE],
 }
 
 
-void exit_if_corrupt_bits(Board *b, Board b_history[BITBOARD_HISTORY_SIZE], 
-                          U64 bitboard_history[BITBOARD_HISTORY_SIZE][2], int bitboard_history_index) {
+bool exit_if_corrupt_bits(Board *b, Board b_history[BITBOARD_HISTORY_SIZE], 
+                          U64 bitboard_history[BITBOARD_HISTORY_SIZE][2], int bitboard_history_index, int id) {
     // Print out both pawn bitboards
     for (int i = 1; i <= 7; i += 6) {
         U64 bb = b->bitboards[i];
@@ -146,11 +146,13 @@ void exit_if_corrupt_bits(Board *b, Board b_history[BITBOARD_HISTORY_SIZE],
             count++;
             // Early exit: If we already have more than 8 bits, no need to count further
             if (count > 8) {
-                std::cerr << "Corrupted bitboard: " << std::bitset<64>(og_bb) << std::endl;
+                std::cerr << "Corrupted bitboard [" << id << "]:" << std::bitset<64>(og_bb) << std::endl;
                 std::cerr << "Exiting..." << std::endl;
                 print_bitboard_history(b_history, bitboard_history, bitboard_history_index);
-                exit(1);
+                return true;
             }
         }
     }
+
+    return false;
 }

@@ -17,13 +17,16 @@ constexpr int neg_infinity = -pos_infinity;
 // Store the last 5 sets of 12 bitboards for debugging or analysis
 U64 bitboard_history[BITBOARD_HISTORY_SIZE][2] = {0};
 Board b_history[BITBOARD_HISTORY_SIZE] = {};
+Move move_history[BITBOARD_HISTORY_SIZE] = {};
 int bitboard_history_index = 0;
 
-void add_to_bitboard_history(Board *b, Board b_history[BITBOARD_HISTORY_SIZE], U64 white_pawns, 
-                             U64 black_pawns) {
+void add_to_bitboard_history(Board *b, Board b_history[BITBOARD_HISTORY_SIZE], 
+    Move move_history[BITBOARD_HISTORY_SIZE], U64 white_pawns, U64 black_pawns, Move move) {
     bitboard_history[bitboard_history_index][0] = white_pawns;
     bitboard_history[bitboard_history_index][1] = black_pawns;
     b_history[bitboard_history_index] = *b;
+    move_history[bitboard_history_index] = move;
+
     bitboard_history_index = (bitboard_history_index + 1) % BITBOARD_HISTORY_SIZE;
 }
 
@@ -68,21 +71,21 @@ Move find_best_move(Board *b, MoveList *move_list, int depth) {
         Move move = move_list->moves[i];
         std::string move_str = move_to_move_str(move);
         // print_board(b, true, true);
-        add_to_bitboard_history(b, b_history, b->bitboards[1], b->bitboards[7]);
-        exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index);
+        add_to_bitboard_history(b, b_history, move_history, b->bitboards[1], b->bitboards[7], move);
+        exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index, -7);
         
         make_move_on_board(b, move);
-        add_to_bitboard_history(b, b_history, b->bitboards[1], b->bitboards[7]);
+        // add_to_bitboard_history(b, b_history, move_history, b->bitboards[1], b->bitboards[7], move);
         // print_board(b, true, true);
-        exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index);
+        // exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index, -6);
 
         int score = -search(b, depth - 1, -beta, -alpha);
         // print_board(b, true, true);
-        exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index);
+        // exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index, -5);
 
         unmake_move_on_board(b, move);
         // print_board(b, true, true);
-        exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index);
+        // exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index, -4);
 
         // std::cout << "Move " << move_str << " has score " << score << std::endl;
         if (score > alpha) {
@@ -107,34 +110,50 @@ int search(Board *b, int depth, int alpha, int beta) {
     //           << alpha << ", " << beta << "): ";
     
     if (move_list.count == 0) {
-        if (king_in_check(b)) {
-            return neg_infinity; // Checkmate
-        }
-        return 0; // Stalemate
+        return (king_in_check(b)) ? neg_infinity : 0; // Checkmate or stalemate
     }
     
     // Heuristically presort moves to have relatively better ones first
     sort_moves(b, &move_list);
     // std::cout << " Searching at depth " << depth << " with " << move_list.count << " moves." << std::endl;
-    for (int i = 0; i < move_list.count; ++i) {
+    for (int i = 0; i < move_list.count; i++) {
         Move move = move_list.moves[i];
         std::string move_str = move_to_move_str(move);
         // print_board(b, true, true);
-        add_to_bitboard_history(b, b_history, b->bitboards[1], b->bitboards[7]);
-        exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index);
+        // add_to_bitboard_history(b, b_history, move_history, b->bitboards[1], b->bitboards[7], move);
+        // if (exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index, 5)) {
+        //     std::cerr << "Info after corruption:\n" << move_str << std::endl;
+        //     std::cerr << "Num moves: " << move_list.count << std::endl;
+        //     std::cerr << "Moves: ";
+        //     for (int j = 0; j < move_list.count; j++) {
+        //         std::cerr << move_to_move_str(move_list.moves[j]) << " ";
+        //     }
+        //     std::cerr << std::endl;
+        //     std::cerr << "Depth: " << depth << std::endl;
+        //     // alpha beta
+        //     std::cerr << "Alpha: " << alpha << std::endl;
+        //     std::cerr << "Beta: " << beta << std::endl;
+        //     std::cerr << "Move history: " << std::endl;
+        //     for (int j = 0; j < BITBOARD_HISTORY_SIZE; j++) {
+        //         int k = (bitboard_history_index + j) % BITBOARD_HISTORY_SIZE;
+        //         std::cerr << move_to_move_str(move_history[k]) << " ";
+        //     }
+
+        //     exit(1);
+        // }
         
         make_move_on_board(b, move);
-        add_to_bitboard_history(b, b_history, b->bitboards[1], b->bitboards[7]);
+        // add_to_bitboard_history(b, b_history, move_history, b->bitboards[1], b->bitboards[7], move);
         // print_board(b, true, true);
-        exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index);
+        // exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index, -1);
 
         int eval = -search(b, depth - 1, -beta, -alpha);
         // print_board(b, true, true);
-        exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index);
+        // exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index, -2);
 
         unmake_move_on_board(b, move);
         // print_board(b, true, true);
-        exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index);
+        // exit_if_corrupt_bits(b, b_history, bitboard_history, bitboard_history_index, -3);
 
         if (eval >= beta) {
             return beta; // Move is better for the opponent, prune the search

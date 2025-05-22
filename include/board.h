@@ -7,6 +7,7 @@
 #include "util.h"
 
 struct UndoState {
+    bool side_to_move; // 0 for white, 1 for black
     uint8_t castling_rights;
     uint8_t enpassant_square;
     uint8_t half_move_clock;
@@ -34,4 +35,4 @@ void print_params(Board *b);
 void print_bitboards(Board *b);
 
 void print_bitboard_history(Board b_history[BITBOARD_HISTORY_SIZE], U64 bitboard_history[BITBOARD_HISTORY_SIZE][2], int bitboard_history_index);
-void exit_if_corrupt_bits(Board *b, Board b_history[BITBOARD_HISTORY_SIZE], U64 bitboard_history[BITBOARD_HISTORY_SIZE][2], int bitboard_history_index);
+bool exit_if_corrupt_bits(Board *b, Board b_history[BITBOARD_HISTORY_SIZE], U64 bitboard_history[BITBOARD_HISTORY_SIZE][2], int bitboard_history_index , int id);

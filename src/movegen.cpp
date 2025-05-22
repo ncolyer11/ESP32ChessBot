@@ -304,14 +304,17 @@ void generate_pawn_moves(Board *b, MoveList *move_list) {
         // En passant
         if (b->enpassant_square < 64) {
             int file = sq_idx % 8;
-            for (int df = -1; df <= 1; df += 2) {
-                int cap_file = file + df;
-                if (cap_file < 0 || cap_file > 7) continue;
-                int cap = sq_idx + direction + df;
-                if (cap == b->enpassant_square) {
-                    // std::cout << "[DEBUG] En passant possible: pawn from " 
-                            //   << sq_idx << " to " << cap << std::endl;
-                    add_move(move_list, sq_idx, cap, ENPASSANT_FLAG);
+            int ep_rank = b->enpassant_square / 8;
+            if ((!b->side_to_move && ep_rank == 5) || (b->side_to_move && ep_rank == 2)) {
+                for (int df = -1; df <= 1; df += 2) {
+                    int cap_file = file + df;
+                    if (cap_file < 0 || cap_file > 7) continue;
+                    int cap = sq_idx + direction + df;
+                    if (cap == b->enpassant_square) {
+                        // std::cout << "[DEBUG] En passant possible: pawn from " 
+                                //   << sq_idx << " to " << cap << std::endl;
+                        add_move(move_list, sq_idx, cap, ENPASSANT_FLAG);
+                    }
                 }
             }
         }
