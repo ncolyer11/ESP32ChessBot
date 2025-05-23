@@ -12,13 +12,14 @@ void get_materials(Board *b, int *my_material, int *op_material);
 float endgame_phase_weight(int materials_no_pawns);
 int manhattan_distance_from_centre(int sq_idx);
 int num_rook_moves_to_reach_square(int from, int to);
+void get_positional_values(Board *b, int side_score[2], bool my_is_black, 
+                           float my_endgame_weight, float op_endgame_weight);
 
 int evaluate(Board *b) {
-    const Piece* board_squares = b->squares;
-    bool side_to_move_is_black = b->side_to_move;
+    bool my_is_black = b->side_to_move;
 
     // Calculate material difference from the perspective of the side to move
-    int player_idx = side_to_move_is_black ? 1 : 0;
+    int player_idx = my_is_black ? 1 : 0;
     int op_idx = player_idx ^ 1;
     int side_score[2] = {0, 0}; // [0] for White, [1] for Black
 
@@ -39,66 +40,58 @@ int evaluate(Board *b) {
 
     int my_mop_up = mop_up_eval(b, my_material, op_material, my_endgame_weight);
     int opp_mop_up = mop_up_eval(b, my_material, op_material, op_endgame_weight);
-    std::cout << "My material: " << my_material
-              << ", My material (no pawns): " << my_mat_no_pawns
-              << ", My endgame weight: " << std::fixed << std::setprecision(3) << my_endgame_weight
-              << ", My mop up: " << my_mop_up << '\n';
-
-    std::cout << "op material: " << op_material
-              << ", op material (no pawns): " << op_mat_no_pawns
-              << ", op endgame weight: " << std::fixed << std::setprecision(3) 
-              << op_endgame_weight
-              << ", op mop up: " << opp_mop_up << '\n';
-
+    
     side_score[player_idx] += my_mop_up;
     side_score[op_idx] += opp_mop_up;
+    // std::cout << "My material: " << my_material
+    //           << ", My material (no pawns): " << my_mat_no_pawns
+    //           << ", My endgame weight: " << std::fixed << std::setprecision(3) << my_endgame_weight
+    //           << ", My mop up: " << my_mop_up << '\n';
 
-    for (int sq_idx = 0; sq_idx < 64; ++sq_idx) {
-        Piece piece = board_squares[sq_idx];
-        uint8_t type = piece & TYPE_MASK;
-        if (type == NONE) continue;
+    // std::cout << "op material: " << op_material
+    //           << ", op material (no pawns): " << op_mat_no_pawns
+    //           << ", op endgame weight: " << std::fixed << std::setprecision(3) 
+    //           << op_endgame_weight
+    //           << ", op mop up: " << opp_mop_up << '\n';
 
-        bool is_black = (piece & BLACK) != 0;
-        int color_idx = is_black ? 1 : 0;
-        // Flip square index for white's perspective for PSTs as white is on the bottom
-        int table_idx = is_black ? sq_idx : flip_square(sq_idx); 
+    get_positional_values(b, side_score, my_is_black, my_endgame_weight, op_endgame_weight);
 
-        int positional_value = 0; // Initialize positional value
-
-        // Use simple_base_values for material and apply positional adjustments
-        switch (type) {
-            case PAWN:   positional_value = mg_pawn_pos_table[table_idx]; break;
-            case KNIGHT: positional_value = knight_pos_table[table_idx]; break;
-            case BISHOP: positional_value = bishop_pos_table[table_idx]; break;
-            case ROOK:   positional_value = rook_pos_table[table_idx]; break;
-            case QUEEN:  positional_value = queen_pos_table[table_idx]; break;
-            case KING:   positional_value = mg_king_table[table_idx]; break;
-        }
-
-        // if the piece is black and were black or if its weight and were white use my_endgame_weight
-        float eg_weight = (is_black == side_to_move_is_black) ? my_endgame_weight
-                                                              : op_endgame_weight;
-        if (type == PAWN) {
-            int mg_val = mg_pawn_pos_table[table_idx] * (1.0f - eg_weight);
-            int eg_val = eg_pawn_pos_table[table_idx] * eg_weight;
-            positional_value = mg_val + eg_val;
-            std::cout << "Pawn positional value = mg_val + eg_val = " << mg_val << " + " 
-                      << eg_val << " = " << positional_value << std::endl;
-        } else if (type == KING) {
-            int mg_val = mg_king_table[table_idx] * (1.0f - eg_weight);
-            int eg_val = eg_king_table[table_idx] * eg_weight;
-            positional_value = mg_val + eg_val;
-            std::cout << "King positional value = mg_val + eg_val = " << mg_val << " + "
-                      << eg_val << " = " << positional_value << std::endl;
-        }
-
-        // Add both base material value and positional value
-        side_score[color_idx] += positional_value;
-
-    }
-    
     int material_difference = side_score[player_idx] - side_score[op_idx];
     return material_difference;
+}
+
+void get_positional_values(Board *b, int side_score[2], bool my_is_black, 
+                           float my_endgame_weight, float op_endgame_weight) {
+    for (int sq_idx = 0; sq_idx < 64; sq_idx++) {
+        Piece piece = b->squares[sq_idx];
+        uint8_t type = piece & TYPE_MASK;
+        if (type == NONE) continue;
+        bool is_black = (piece & BLACK) != 0;
+        
+        // flip square index for white's perspective for PSTs as white is on the bottom
+        int table_idx = is_black ? sq_idx : flip_square(sq_idx); 
+        int positional_value = 0;
+        if (type <= PAWN) { // king or pawn
+            float eg_weight = (is_black == my_is_black) ? my_endgame_weight : op_endgame_weight;
+            const int *mg_table = (type == PAWN) ? mg_pawn_pos_table : mg_king_table;
+            const int *eg_table = (type == PAWN) ? eg_pawn_pos_table : eg_king_table;
+            int mg_val = mg_table[table_idx] * (1.0f - eg_weight);
+            int eg_val = eg_table[table_idx] * eg_weight;
+            positional_value = mg_val + eg_val;
+            // std:: cout << (type == PAWN ? "Pawn" : "King") << " positional value = mg_val + eg_val = "
+            //           << mg_val << " + " << eg_val << " = " << positional_value << std::endl;
+        } else {
+            switch (type) {
+                case KNIGHT: positional_value = knight_pos_table[table_idx]; break;
+                case BISHOP: positional_value = bishop_pos_table[table_idx]; break;
+                case ROOK:   positional_value = rook_pos_table[table_idx]; break;
+                case QUEEN:  positional_value = queen_pos_table[table_idx]; break;
+            }
+        }
+        
+        // Add both base material value and positional value
+        side_score[is_black] += positional_value;
+    }
 }
 
 // The force_king_to_corner_endgame_eval function is currently not used in evaluate(),
@@ -134,12 +127,12 @@ void get_materials(Board *b, int *my_material, int *op_material) {
         int opp_count = popcount(opp_bb);
         int my_val = my_count * simple_base_values[type];
         int opp_val = opp_count * simple_base_values[type];
-        std::cout << "\nType: " << (int)type << " My count: " << my_count << " My value: " << my_val << std::endl;
-        std::cout << " Opp count: " << opp_count << " Opp value: " << opp_val << std::endl;
+        // std::cout << "\nType: " << (int)type << " My count: " << my_count << " My value: " << my_val << std::endl;
+        // std::cout << " Opp count: " << opp_count << " Opp value: " << opp_val << std::endl;
         *my_material += my_val;
         *op_material += opp_val;
     }
-    std::cout << "Total my_material: " << *my_material << ", op_material: " << *op_material << std::endl;
+    // std::cout << "Total my_material: " << *my_material << ", op_material: " << *op_material << std::endl;
 }
 
 float endgame_phase_weight(int materials_no_pawns) {

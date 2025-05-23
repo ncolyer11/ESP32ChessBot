@@ -24,8 +24,7 @@ void test_fens();
 // void print_all_opening_moves();
 
 int main() {
-    test_fens();
-    return 0;
+    // test_fens();
     // print_all_opening_moves();
     check_for_test_mode();
     

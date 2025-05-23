@@ -377,7 +377,7 @@ bool is_checkmate(int legal_moves_count, bool is_king_in_check) {
 }
 
 bool is_draw(uint8_t half_move_clock) {
-    return half_move_clock > 50;
+    return half_move_clock > 100;
 }
 
 bool is_stalemate(int legal_moves_count, bool is_king_in_check) {

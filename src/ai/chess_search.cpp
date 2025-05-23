@@ -31,7 +31,7 @@ Move get_next_bot_move(Board *b, int depth) {
 }
 
 Move find_best_move(Board *b, MoveList *move_list, int depth) {
-    std::cout << "Searching for best move at depth " << depth << "..." << std::endl;
+    // std::cout << "Searching for best move at depth " << depth << "..." << std::endl;
     generate_moves(b, move_list);
     if (move_list->count == 0) return NO_MOVES; // Game over
     sort_moves(b, move_list);
@@ -46,6 +46,8 @@ Move find_best_move(Board *b, MoveList *move_list, int depth) {
         if (opening_move != NO_MOVES) {
             opening_move_score = get_score(b, opening_move, depth, alpha, beta, 1) 
                                  + opening_bonus(b->full_moves);
+            // std::cout << "Opening move: " << move_to_move_str(opening_move) 
+            //           << " with score: " << opening_move_score << std::endl;
         }
     }
     Move best_move = move_list->moves[0];
@@ -55,14 +57,14 @@ Move find_best_move(Board *b, MoveList *move_list, int depth) {
         
         int score = get_score(b, move, depth, alpha, beta, 2);
 
-        std::cout << "Move " << move_str << " has score " << score << std::endl;
+        // std::cout << "Move " << move_str << " has score " << score << std::endl;
         if (score > alpha) {
             alpha = score;
             best_move = move;
         }
     }
 
-    std::cout << "Best move found: " << move_to_move_str(best_move) << " with score " << alpha << std::endl;
+    // std::cout << "Best move found: " << move_to_move_str(best_move) << " with score " << alpha << std::endl;
 
     return (alpha > opening_move_score) || !opening_move ? best_move : opening_move;
 }
@@ -220,9 +222,10 @@ Move pick_random_opening_move(Board *b, MoveList *move_list) {
 }
 
 int opening_bonus(int full_move_number) {
-    int move_index = full_move_number - 1; // 1-indexed
+    int move_index = full_move_number - 2;
     if (move_index >= 5) return 0;
-    return 100 - 15 * move_index;
+    int bonus = 150 - 20 * move_index;
+    return bonus;
 }
 
 void DEBUG_hash_discrepancy(Board *b_start, Board *b_middle, Board *b_final, Move move, int id) {
