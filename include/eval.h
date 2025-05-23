@@ -13,7 +13,7 @@ struct PhaseValues {
 };
 
 //                                                king, pawn, knight, bishop, rook, queen
-inline constexpr int simple_base_values[] = {  0, 4000, 100,  320,    330,    500,  900 };
+inline constexpr int simple_base_values[] = {  0, 0   , 100,  320,    345,    500,  900 };
 
 constexpr float endgame_mat_start = simple_base_values[ROOK] * 2 
                                   + simple_base_values[BISHOP]
@@ -27,7 +27,7 @@ constexpr int mg_pawn_pos_table[64] = {
     5,  5, 10, 25, 25, 10,  5,  5,
     0,  0,  0, 20, 20,  0,  0,  0,
     5, -5,-10,  0,  0,-10, -5,  5,
-    5, 10, 10,-20,-20, 10, 10,  5,
+    5, 10, 10,-25,-25, 10, 10,  5,
     0,  0,  0,  0,  0,  0,  0,  0
 };
 
@@ -39,7 +39,7 @@ constexpr int eg_pawn_pos_table[64] = {
    15,  30,  40,  50,  50,  40,  30,  15,
    10,  20,  30,  40,  40,  30,  20,  10,
     5,  10,  20,  30,  30,  20,  10,   5,
-    0,   5,  10,  15,  15,  10,   5,   0
+    0,   0,   0,   0,   0,   0,   0,   0
 };
  
 
@@ -71,7 +71,7 @@ constexpr int rook_pos_table[64] = {
     -5,  0,  0,  0,  0,  0,  0, -5,
     -5,  0,  0,  0,  0,  0,  0, -5,
     -5,  0,  0,  0,  0,  0,  0, -5,
-    0,  0,  0,  5,  5,  0,  0,  0,
+    0,  0,  0,  15,  15,  10,  0,  0,
 };
 constexpr int queen_pos_table[64] = {
     -20,-10,-10, -5, -5,-10,-10,-20,
@@ -103,6 +103,17 @@ constexpr int eg_king_table[64] = {
     -30,-30,  0,  0,  0,  0,-30,-30,
     -50,-30,-30,-30,-30,-30,-30,-50
 };
+constexpr int manhattan_from_centre[8][8] = {
+    {6, 5, 4, 3, 3, 4, 5, 6},
+    {5, 4, 3, 2, 2, 3, 4, 5},
+    {4, 3, 2, 1, 1, 2, 3, 4},
+    {3, 2, 1, 0, 0, 1, 2, 3},
+    {3, 2, 1, 0, 0, 1, 2, 3},
+    {4, 3, 2, 1, 1, 2, 3, 4},
+    {5, 4, 3, 2, 2, 3, 4, 5},
+    {6, 5, 4, 3, 3, 4, 5, 6}
+};
+
 
 // flip for black’s perspective
 static constexpr int flip_square(int square_idx) { return square_idx ^ 0b111000; }

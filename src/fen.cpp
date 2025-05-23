@@ -50,7 +50,7 @@ void load_position_from_fen(Board *b, std::string fen) {
             // 64-bit mask with 1 at the square position, 1ULL is a 64-bit unsigned long long
             U64 square_mask = 1ULL << square_idx;
             b->squares[square_idx] = piece;
-            b->bitboards[piece_to_bitboard_idx(piece)] |= square_mask;
+            b->bitboards[piece_to_bb_idx(piece)] |= square_mask;
             file++;
         }
     }

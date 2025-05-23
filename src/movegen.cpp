@@ -191,7 +191,7 @@ void init_attack_bitboards() {
 // -- King moves (not castling) --
 void generate_king_moves(Board *b, MoveList *move_list) {
     Piece king_piece = KING | friendly_colour(b);
-    U64 king_bb = b->bitboards[piece_to_bitboard_idx(king_piece)];
+    U64 king_bb = b->bitboards[piece_to_bb_idx(king_piece)];
     if (!king_bb) return; // No king on the board
     int king_sq = bit_scan_forward(king_bb);
 

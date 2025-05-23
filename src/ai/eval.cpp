@@ -7,10 +7,10 @@
 
 int manhattan_distance(int square1, int square2);
 int num_rook_moves_to_reach_square(int from, int to);
-int mop_up_eval(Board *b, int my_material, int opponent_material, float endgame_weight );
-void get_materials(Board *b, int *my_material, int *opponent_material);
+int mop_up_eval(Board *b, int my_material, int op_material, float endgame_weight );
+void get_materials(Board *b, int *my_material, int *op_material);
 float endgame_phase_weight(int materials_no_pawns);
-int manhattan_distance(int square1, int square2);
+int manhattan_distance_from_centre(int sq_idx);
 int num_rook_moves_to_reach_square(int from, int to);
 
 int evaluate(Board *b) {
@@ -19,46 +19,49 @@ int evaluate(Board *b) {
 
     // Calculate material difference from the perspective of the side to move
     int player_idx = side_to_move_is_black ? 1 : 0;
-    int opponent_idx = player_idx ^ 1;
+    int op_idx = player_idx ^ 1;
     int side_score[2] = {0, 0}; // [0] for White, [1] for Black
 
-    int my_material, opponent_material;
-    get_materials(b, &my_material, &opponent_material);
+    int my_material, op_material;
+    get_materials(b, &my_material, &op_material);
     side_score[player_idx] += my_material;
-    side_score[opponent_idx] += opponent_material;
+    side_score[op_idx] += op_material;
 
     uint8_t my_colour = b->side_to_move ? BLACK : WHITE;
     uint8_t opp_colour = b->side_to_move ? WHITE : BLACK;
-    int my_mat_no_pawns = my_material - popcount(b->bitboards[PAWN | my_colour]) * simple_base_values[PAWN];
-    int opponent_mat_no_pawns = opponent_material - popcount(b->bitboards[PAWN | opp_colour]) * simple_base_values[PAWN];
+    U64 friendly_pawn_bb = b->bitboards[piece_to_bb_idx(PAWN | my_colour)];
+    U64 op_pawn_bb = b->bitboards[piece_to_bb_idx(PAWN | opp_colour)];
+    int my_mat_no_pawns = my_material - popcount(friendly_pawn_bb) * simple_base_values[PAWN];
+    int op_mat_no_pawns = op_material - popcount(op_pawn_bb) * simple_base_values[PAWN];
 
     float my_endgame_weight = endgame_phase_weight(my_mat_no_pawns);
-    float opponent_endgame_weight = endgame_phase_weight(opponent_mat_no_pawns);
+    float op_endgame_weight = endgame_phase_weight(op_mat_no_pawns);
 
-    int my_mop_up = mop_up_eval(b, my_material, opponent_material, my_endgame_weight);
-    int opp_mop_up = mop_up_eval(b, my_material, opponent_material, opponent_endgame_weight);
+    int my_mop_up = mop_up_eval(b, my_material, op_material, my_endgame_weight);
+    int opp_mop_up = mop_up_eval(b, my_material, op_material, op_endgame_weight);
     std::cout << "My material: " << my_material
-            << ", My material (no pawns): " << my_mat_no_pawns
-            << ", My endgame weight: " << std::fixed << std::setprecision(3) << my_endgame_weight
-            << ", My mop up: " << my_mop_up << '\n';
+              << ", My material (no pawns): " << my_mat_no_pawns
+              << ", My endgame weight: " << std::fixed << std::setprecision(3) << my_endgame_weight
+              << ", My mop up: " << my_mop_up << '\n';
 
-    std::cout << "Opponent material: " << opponent_material
-            << ", Opponent material (no pawns): " << opponent_mat_no_pawns
-            << ", Opponent endgame weight: " << std::fixed << std::setprecision(3) << opponent_endgame_weight
-            << ", Opponent mop up: " << opp_mop_up << '\n';
+    std::cout << "op material: " << op_material
+              << ", op material (no pawns): " << op_mat_no_pawns
+              << ", op endgame weight: " << std::fixed << std::setprecision(3) 
+              << op_endgame_weight
+              << ", op mop up: " << opp_mop_up << '\n';
 
     side_score[player_idx] += my_mop_up;
-    side_score[opponent_idx] += opp_mop_up;
+    side_score[op_idx] += opp_mop_up;
 
-    for (int square_idx = 0; square_idx < 64; ++square_idx) {
-        Piece piece = board_squares[square_idx];
+    for (int sq_idx = 0; sq_idx < 64; ++sq_idx) {
+        Piece piece = board_squares[sq_idx];
         uint8_t type = piece & TYPE_MASK;
         if (type == NONE) continue;
 
         bool is_black = (piece & BLACK) != 0;
         int color_idx = is_black ? 1 : 0;
         // Flip square index for white's perspective for PSTs as white is on the bottom
-        int table_idx = is_black ? square_idx : flip_square(square_idx); 
+        int table_idx = is_black ? sq_idx : flip_square(sq_idx); 
 
         int positional_value = 0; // Initialize positional value
 
@@ -72,16 +75,21 @@ int evaluate(Board *b) {
             case KING:   positional_value = mg_king_table[table_idx]; break;
         }
 
+        // if the piece is black and were black or if its weight and were white use my_endgame_weight
+        float eg_weight = (is_black == side_to_move_is_black) ? my_endgame_weight
+                                                              : op_endgame_weight;
         if (type == PAWN) {
-            int mg_val = mg_pawn_pos_table[table_idx] * (1.0f - my_endgame_weight);
-            int eg_val = eg_pawn_pos_table[table_idx] * my_endgame_weight;
+            int mg_val = mg_pawn_pos_table[table_idx] * (1.0f - eg_weight);
+            int eg_val = eg_pawn_pos_table[table_idx] * eg_weight;
             positional_value = mg_val + eg_val;
-            std::cout << "Pawn positional value = mg_val + eg_val = " << mg_val << " + " << eg_val << " = " << positional_value << std::endl;
+            std::cout << "Pawn positional value = mg_val + eg_val = " << mg_val << " + " 
+                      << eg_val << " = " << positional_value << std::endl;
         } else if (type == KING) {
-            int mg_val = mg_king_table[table_idx] * (1.0f - my_endgame_weight);
-            int eg_val = eg_king_table[table_idx] * my_endgame_weight;
+            int mg_val = mg_king_table[table_idx] * (1.0f - eg_weight);
+            int eg_val = eg_king_table[table_idx] * eg_weight;
             positional_value = mg_val + eg_val;
-            std::cout << "King positional value = mg_val + eg_val = " << mg_val << " + " << eg_val << " = " << positional_value << std::endl;
+            std::cout << "King positional value = mg_val + eg_val = " << mg_val << " + "
+                      << eg_val << " = " << positional_value << std::endl;
         }
 
         // Add both base material value and positional value
@@ -89,40 +97,49 @@ int evaluate(Board *b) {
 
     }
     
-    int material_difference = side_score[player_idx] - side_score[opponent_idx];
-    return material_difference; // + mop_up_score;
+    int material_difference = side_score[player_idx] - side_score[op_idx];
+    return material_difference;
 }
 
 // The force_king_to_corner_endgame_eval function is currently not used in evaluate(),
 // but its definition remains for future re-introduction if needed.
-int mop_up_eval(Board *b, int my_material, int opponent_material, float endgame_weight) {
+int mop_up_eval(Board *b, int my_material, int op_material, float endgame_weight) {
     int mop_up_score = 0;
     int friendly_colour = b->side_to_move ? BLACK : WHITE;
-    int opponent_colour = b->side_to_move ? WHITE : BLACK;
+    int op_colour = b->side_to_move ? WHITE : BLACK;
     int pawn_threshold = simple_base_values[2] * 2;
-    if (my_material > opponent_material + pawn_threshold && endgame_weight > 0.0f) {
+    if (my_material > op_material + pawn_threshold && endgame_weight > 0.0f) {
 
-        int friendly_king_square = bit_scan_forward(b->bitboards[KING | friendly_colour]);
-        int opponent_king_square = bit_scan_forward(b->bitboards[KING | opponent_colour]);
-        mop_up_score += manhattan_distance(friendly_king_square, opponent_king_square) * 10;
-        int ortho_dist = num_rook_moves_to_reach_square(friendly_king_square, opponent_king_square);
+        U64 friendly_king_bb = b->bitboards[piece_to_bb_idx(KING | friendly_colour)];
+        U64 op_king_bb = b->bitboards[piece_to_bb_idx(KING | op_colour)];
+        int friendly_king_square = bit_scan_forward(friendly_king_bb);
+        int op_king_square = bit_scan_forward(op_king_bb);
+        mop_up_score += manhattan_distance_from_centre(friendly_king_square) * 10;
+        int ortho_dist = num_rook_moves_to_reach_square(friendly_king_square, op_king_square);
         mop_up_score += (14 - ortho_dist) * 4;
         return static_cast<int>(mop_up_score * endgame_weight);
     }
     return 0;
 }
 
-void get_materials(Board *b, int *my_material, int *opponent_material) {
+void get_materials(Board *b, int *my_material, int *op_material) {
     *my_material = 0;
-    *opponent_material = 0;
+    *op_material = 0;
     uint8_t my_colour = b->side_to_move ? BLACK : WHITE;
     uint8_t opp_colour = b->side_to_move ? WHITE : BLACK;
-    for (Piece type = PAWN; type <= KING; type++) {
-        U64 my_bb = b->bitboards[type | my_colour];
-        U64 opp_bb = b->bitboards[type | opp_colour];
-        *my_material += popcount(my_bb) * simple_base_values[type];
-        *opponent_material += popcount(opp_bb) * simple_base_values[type];
+    for (Piece type = KING; type <= QUEEN; type++) {
+        U64 my_bb = b->bitboards[piece_to_bb_idx(type | my_colour)];
+        U64 opp_bb = b->bitboards[piece_to_bb_idx(type | opp_colour)];
+        int my_count = popcount(my_bb);
+        int opp_count = popcount(opp_bb);
+        int my_val = my_count * simple_base_values[type];
+        int opp_val = opp_count * simple_base_values[type];
+        std::cout << "\nType: " << (int)type << " My count: " << my_count << " My value: " << my_val << std::endl;
+        std::cout << " Opp count: " << opp_count << " Opp value: " << opp_val << std::endl;
+        *my_material += my_val;
+        *op_material += opp_val;
     }
+    std::cout << "Total my_material: " << *my_material << ", op_material: " << *op_material << std::endl;
 }
 
 float endgame_phase_weight(int materials_no_pawns) {
@@ -130,16 +147,14 @@ float endgame_phase_weight(int materials_no_pawns) {
     return 1.0f - std::min(1.0f, materials_no_pawns * multiplier);
 }
 
-int manhattan_distance(int square1, int square2) {
-    int file1 = square1 % 8;
-    int rank1 = square1 / 8;
-    int file2 = square2 % 8;
-    int rank2 = square2 / 8;
-    return std::abs(file1 - file2) + std::abs(rank1 - rank2);
-}
-
 int num_rook_moves_to_reach_square(int from, int to) {
     int file_diff = std::abs((from % 8) - (to % 8));
     int rank_diff = std::abs((from / 8) - (to / 8));
     return file_diff + rank_diff;
+}
+
+int manhattan_distance_from_centre(int sq_idx) {
+    int rank = sq_idx / 8;
+    int file = sq_idx % 8;
+    return manhattan_from_centre[rank][file];
 }

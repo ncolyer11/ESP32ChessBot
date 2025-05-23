@@ -139,9 +139,9 @@ void unmake_move_on_board(Board *b, Move move) {
 void apply_normal_move(Board *b, int from, int to, Piece piece, Piece captured) {
     b->squares[to] = piece;
     b->squares[from] = NONE;
-    b->bitboards[piece_to_bitboard_idx(piece)] ^= (1ULL << from) | (1ULL << to);
+    b->bitboards[piece_to_bb_idx(piece)] ^= (1ULL << from) | (1ULL << to);
     if (captured != NONE) {
-        b->bitboards[piece_to_bitboard_idx(captured)] ^= (1ULL << to);
+        b->bitboards[piece_to_bb_idx(captured)] ^= (1ULL << to);
     }
 }
 
@@ -156,20 +156,20 @@ void apply_promotion_move(Board *b, int from, int to, Piece piece, Piece capture
     promo |= (piece & COLOUR_MASK);
     b->squares[to] = promo;
     b->squares[from] = NONE;
-    b->bitboards[piece_to_bitboard_idx(piece)] ^= (1ULL << from);
-    b->bitboards[piece_to_bitboard_idx(promo)] |= (1ULL << to);
+    b->bitboards[piece_to_bb_idx(piece)] ^= (1ULL << from);
+    b->bitboards[piece_to_bb_idx(promo)] |= (1ULL << to);
     // Check if pawn captured whilst promoting
     if (captured != NONE) {
-        b->bitboards[piece_to_bitboard_idx(captured)] ^= (1ULL << to);
+        b->bitboards[piece_to_bb_idx(captured)] ^= (1ULL << to);
     }
 }
 
 void apply_en_passant_move(Board *b, int from, int to, Piece piece) {
     b->squares[to] = piece;
     b->squares[from] = NONE;
-    b->bitboards[piece_to_bitboard_idx(piece)] ^= (1ULL << from) | (1ULL << to);
+    b->bitboards[piece_to_bb_idx(piece)] ^= (1ULL << from) | (1ULL << to);
     int ep_capture_sq = to + (b->side_to_move ? 8 : -8);
-    b->bitboards[piece_to_bitboard_idx(PAWN | opponent_colour(b))] ^= (1ULL << ep_capture_sq);
+    b->bitboards[piece_to_bb_idx(PAWN | opponent_colour(b))] ^= (1ULL << ep_capture_sq);
     b->squares[ep_capture_sq] = NONE;
     b->enpassant_square = 64;
 }
@@ -179,25 +179,25 @@ void apply_castling_move(Board *b, int from, int to, Piece king) {
     //           << " to " << square_idx_to_alg(to) << std::endl;
     b->squares[to] = king;
     b->squares[from] = NONE;
-    b->bitboards[piece_to_bitboard_idx(king)] ^= (1ULL << from) | (1ULL << to);
+    b->bitboards[piece_to_bb_idx(king)] ^= (1ULL << from) | (1ULL << to);
 
     // Move rook
     if (to == 6) { // White kingside
         b->squares[5] = (ROOK | WHITE);
         b->squares[7] = NONE;
-        b->bitboards[piece_to_bitboard_idx(ROOK | WHITE)] ^= (1ULL << 5) | (1ULL << 7);
+        b->bitboards[piece_to_bb_idx(ROOK | WHITE)] ^= (1ULL << 5) | (1ULL << 7);
     } else if (to == 2) { // White queenside
         b->squares[3] = (ROOK | WHITE);
         b->squares[0] = NONE;
-        b->bitboards[piece_to_bitboard_idx(ROOK | WHITE)] ^= (1ULL << 3) | (1ULL << 0);
+        b->bitboards[piece_to_bb_idx(ROOK | WHITE)] ^= (1ULL << 3) | (1ULL << 0);
     } else if (to == 62) { // Black kingside
         b->squares[61] = (ROOK | BLACK);
         b->squares[63] = NONE;
-        b->bitboards[piece_to_bitboard_idx(ROOK | BLACK)] ^= (1ULL << 61) | (1ULL << 63);
+        b->bitboards[piece_to_bb_idx(ROOK | BLACK)] ^= (1ULL << 61) | (1ULL << 63);
     } else if (to == 58) { // Black queenside
         b->squares[59] = (ROOK | BLACK);
         b->squares[56] = NONE;
-        b->bitboards[piece_to_bitboard_idx(ROOK | BLACK)] ^= (1ULL << 59) | (1ULL << 56);
+        b->bitboards[piece_to_bb_idx(ROOK | BLACK)] ^= (1ULL << 59) | (1ULL << 56);
     }
 }
 
@@ -331,7 +331,7 @@ bool king_in_check(Board *b) {
 
 // Return the bitboard for specific coloured piece
 U64 bitboard_for_piece(const Board *b, Piece piece) {
-    return b->bitboards[piece_to_bitboard_idx(piece)];
+    return b->bitboards[piece_to_bb_idx(piece)];
 }
 
 std::string move_to_move_str(Move move) {
@@ -399,9 +399,9 @@ void undo_normal_move(Board *b, int from, int to, Piece moved, Piece captured) {
     // 'Uncapture' the piece/none
     b->squares[from] = moved;
     b->squares[to] = captured;
-    b->bitboards[piece_to_bitboard_idx(moved)] ^= (1ULL << from) | (1ULL << to);
+    b->bitboards[piece_to_bb_idx(moved)] ^= (1ULL << from) | (1ULL << to);
     if (captured != NONE) {
-        b->bitboards[piece_to_bitboard_idx(captured)] |= (1ULL << to);
+        b->bitboards[piece_to_bb_idx(captured)] |= (1ULL << to);
     }
 }
 
@@ -411,10 +411,10 @@ void undo_promotion_move(Board *b, int from, int to, Piece moved, Piece captured
     b->squares[from] = pawn;
     b->squares[to] = captured;
     // remove promo from bitboard, restore pawn
-    b->bitboards[piece_to_bitboard_idx(moved)] ^= (1ULL << to);
-    b->bitboards[piece_to_bitboard_idx(pawn)] |= (1ULL << from);
+    b->bitboards[piece_to_bb_idx(moved)] ^= (1ULL << to);
+    b->bitboards[piece_to_bb_idx(pawn)] |= (1ULL << from);
     if (captured != NONE) {
-        b->bitboards[piece_to_bitboard_idx(captured)] |= (1ULL << to);
+        b->bitboards[piece_to_bb_idx(captured)] |= (1ULL << to);
     }
 }
 
@@ -426,16 +426,16 @@ void undo_en_passant_move(Board *b, int from, int to, Piece moved) {
     b->squares[to] = NONE;
     b->squares[ep_capture_sq] = PAWN | (was_white ? BLACK : WHITE);
     // restore bitboards
-    int capture_bb_idx = piece_to_bitboard_idx(PAWN | (was_white ? BLACK : WHITE));
+    int capture_bb_idx = piece_to_bb_idx(PAWN | (was_white ? BLACK : WHITE));
     b->bitboards[capture_bb_idx] |= (1ULL << ep_capture_sq);
-    b->bitboards[piece_to_bitboard_idx(moved)] ^= (1ULL << from) | (1ULL << to);
+    b->bitboards[piece_to_bb_idx(moved)] ^= (1ULL << from) | (1ULL << to);
 }
 
 void undo_castling_move(Board *b, int from, int to, Piece king) {
     // move king back
     b->squares[from] = king;
     b->squares[to] = NONE;
-    b->bitboards[piece_to_bitboard_idx(king)] ^= (1ULL << from) | (1ULL << to);
+    b->bitboards[piece_to_bb_idx(king)] ^= (1ULL << from) | (1ULL << to);
 
     // return rook
     int rook_from, rook_to;
@@ -457,7 +457,7 @@ void undo_castling_move(Board *b, int from, int to, Piece king) {
     Piece rook = ROOK | (king & COLOUR_MASK);
     b->squares[rook_from] = rook;
     b->squares[rook_to] = NONE;
-    b->bitboards[piece_to_bitboard_idx(rook)] ^= (1ULL << rook_from) | (1ULL << rook_to);
+    b->bitboards[piece_to_bb_idx(rook)] ^= (1ULL << rook_from) | (1ULL << rook_to);
 }
 
 // quicksort function

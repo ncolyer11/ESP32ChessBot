@@ -25,10 +25,11 @@ constexpr const char *WHITE_FG = "\033[97m";
 constexpr const char *BLACK_FG = "\033[34m"; // blue for black pieces
 
 void get_player_types();
-int piece_to_bitboard_idx(Piece piece);
+int piece_to_bb_idx(Piece piece);
 Piece symbol_to_piece(char symbol);
 int bit_scan_forward(U64 bb);
 int popcount(uint64_t x);
+void test_popcount(U64 x);
 
 void check_for_test_mode();
 // strip UTF-8 BOM (0xEF,0xBB,0xBF) and trailing '\r'

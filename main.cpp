@@ -20,6 +20,7 @@
 constexpr int DEPTH = 6; // depth for the bot to search
 
 void play(Board *b);
+void test_fens();
 // void print_all_opening_moves();
 
 int main() {
@@ -90,14 +91,10 @@ void play(Board *b) {
 
 void test_fens() {
     std::vector<std::string> fens = {
-        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", // Initial position
-        "rnbqkbnr/pp1ppppp/8/2p5/8/5N2/PPPPPPPP/RNBQKB1R w KQkq c6 0 2", // After 1. Nf3 c5
-        "r1bqkbnr/pppp1ppp/2n5/4p3/1bP5/2N2N2/PP1PPPPP/R1BQKB1R w KQkq - 2 4", // Sicilian defense
-        "8/8/8/8/8/8/PPP5/K1k5 w - - 0 1", // Endgame position
-        "rnb1k1nr/pppp1ppp/8/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 2 3", // Italian game
-        "8/5k2/8/8/8/8/4K3/8 b - - 0 1", // King vs king
-        "rnbq1bnr/pppp1ppp/4pk2/8/3P4/8/PPP2PPP/RNBQKBNR w KQ - 1 4", // Early f3 blunder
-        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 10" // GM-level opening complexity
+        // "6k1/8/8/8/8/8/PPPPPPPP/4K3 b - - 2 73",
+        // "6k1/PPPPPPPP/8/8/8/8/8/4K3 b - - 2 73",
+        "5k2/2r1b3/3ppp2/8/8/8/PPPPPPPP/2R1K1N1 b - - 2 73",
+        // starting_fen
     };
 
     for (const auto &fen : fens) {

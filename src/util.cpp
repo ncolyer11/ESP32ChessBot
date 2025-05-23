@@ -26,7 +26,7 @@ void get_player_types() {
 }
 
 // Converts the 5 bits of a piece into its index (0-11) in the bitboard array
-int piece_to_bitboard_idx(Piece piece) {
+int piece_to_bb_idx(Piece piece) {
     return (piece & TYPE_MASK) + (piece & WHITE ? 0 : 6) - 1;
 }
 
@@ -103,4 +103,8 @@ void check_for_test_mode() {
         MODE = true;
         std::cout << "TEST MODE ACTIVATED\n";
     }
+}
+
+void test_popcount(U64 x) {
+    std::cout << "Popcount of " << x << " (0b" << std::bitset<64>(x) << ") is " << popcount(x) << std::endl;
 }
