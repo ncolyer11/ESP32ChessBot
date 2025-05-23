@@ -1,5 +1,6 @@
 #include <cstdlib>
 
+#include "board.h"
 #include "chess_search.h"
 #include "eval.h"
 #include "fen.h"
@@ -10,28 +11,14 @@ int search(Board *b, int depth, int alpha, int beta);
 void sort_moves(Board *b, MoveList* move_list);
 Move find_best_move(Board *b, MoveList *move_list, int depth);
 Move pick_random_opening_move(Board *b, MoveList *move_list);
+int get_score(Board *b, Move move, int depth, int alpha, int beta, int id);
+void DEBUG_hash_discrepancy(Board *b_start, Board *b_middle, Board *b_final, Move move, int id);
+int opening_bonus(int full_move_number);
 
 // infinities
 constexpr int pos_infinity = 10000000;
 constexpr int neg_infinity = -pos_infinity;
 
-/**
- * @brief Generates all legal moves for the current board position (using the global board), 
- * picks a random move from the legal move list, and returns it in algebraic notation.
- * 
- * Globals Used:
- *   - board (input): The current board state, including side_to_move.
- *   - legal_move_list, legal_move_count (input): Populated by generate_moves() and filter_legal_moves().
- *
- * Returns:
- *   - std::string: The chosen move in algebraic notation (e.g., "e2e4" or "e7e8q" for promotion).
- *
- * Side Effects:
- *   - Prints the chosen move to stdout.
- *
- * Usage:
- *   Call after generate_moves() and filter_legal_moves() to pick a random move.
- */
 Move get_next_bot_move(Board *b, int depth) {
     MoveList move_list = { {}, 0 };
     Move chosen_move = find_best_move(b, &move_list, depth);
@@ -44,29 +31,29 @@ Move get_next_bot_move(Board *b, int depth) {
 }
 
 Move find_best_move(Board *b, MoveList *move_list, int depth) {
+    std::cout << "Searching for best move at depth " << depth << "..." << std::endl;
     generate_moves(b, move_list);
+    if (move_list->count == 0) return NO_MOVES; // Game over
     sort_moves(b, move_list);
-
-    if (b->full_moves <= 3) {
-        Move opening_move = pick_random_opening_move(b, move_list);
-        if (opening_move != NO_MOVES) {
-            std::cout << "Opening move: " << move_to_move_str(opening_move) << std::endl;
-            return opening_move;
-        }
-    }
 
     int alpha = neg_infinity;
     int beta = pos_infinity;
-    Move best_move = -1;
 
-    // std::cout << "Searching for best move at depth " << depth << "..." << std::endl;
+    Move opening_move = NO_MOVES;
+    int opening_move_score = neg_infinity;
+    if (b->full_moves <= 3 + 1) { // as 1-indexed and starts from move 1
+        opening_move = pick_random_opening_move(b, move_list);
+        if (opening_move != NO_MOVES) {
+            opening_move_score = get_score(b, opening_move, depth, alpha, beta, 1) 
+                                 + opening_bonus(b->full_moves);
+        }
+    }
+    Move best_move = move_list->moves[0];
     for (int i = 0; i < move_list->count; ++i) {
         Move move = move_list->moves[i];
         std::string move_str = move_to_move_str(move);
         
-        make_move_on_board(b, move);
-        int score = -search(b, depth - 1, -beta, -alpha);
-        unmake_move_on_board(b, move);
+        int score = get_score(b, move, depth, alpha, beta, 2);
 
         std::cout << "Move " << move_str << " has score " << score << std::endl;
         if (score > alpha) {
@@ -76,44 +63,49 @@ Move find_best_move(Board *b, MoveList *move_list, int depth) {
     }
 
     std::cout << "Best move found: " << move_to_move_str(best_move) << " with score " << alpha << std::endl;
-    return best_move;
+
+    return (alpha > opening_move_score) || !opening_move ? best_move : opening_move;
 }
 
-Move pick_random_opening_move(Board *b, MoveList *move_list) {
-    // Determine which opening move array to use based on move number
-    int move_index = b->full_moves -1 - 1; // 0-index - 1 for the first move
-    std::cout << "Move index: " << move_index << std::endl;
-    
-    // Get the appropriate opening moves for this turn and color
-    const Move *opening_moves = opening_moves_encoded[move_index][b->side_to_move];
-    
-    // Create a list of valid opening moves that are also legal
-    std::vector<Move> valid_opening_moves;
-    
-    // Check each opening move to see if it's in the legal move list
-    for (int i = 0; i < 10; ++i) {
-        Move opening_move = opening_moves[i];
-        
-        // Check if this opening move is in the legal moves
-        for (int j = 0; j < move_list->count; ++j) {
-            if (move_list->moves[j] == opening_move) {
-                valid_opening_moves.push_back(opening_move);
-                break;
-            }
-        }
-    }
-    
-    // If we found valid opening moves, pick one randomly
-    if (!valid_opening_moves.empty()) {
-        int random_index = rand() % valid_opening_moves.size();
-        return valid_opening_moves[random_index];
-    }
-    
-    // Fallback: if no opening moves are legal, select using negmax
-    return NO_MOVES;
+int get_score(Board *b, Move move, int depth, int alpha, int beta, int id) { 
+    size_t hash_before = hash_board_state(b);
+    Board b_copy = *b;
+    make_move_on_board(b, move);
+    Board b_move = *b;
+    int score = -search(b, depth - 1, -beta, -alpha);
+    unmake_move_on_board(b, move);
+    size_t hash_after = hash_board_state(b);
+
+    if (hash_before != hash_after) DEBUG_hash_discrepancy(&b_copy, &b_move, b, move, id);
+
+    return score;
 }
 
 /**
+ * @brief Checks if the king is in check after making a move.
+ * 
+ * @param b The current board state.
+ * @param move The move to check.
+ * @param id The ID for debugging purposes.
+ * @return bool True if the king is in check, false otherwise.
+ */
+bool get_check(Board *b, Move move, int id) { 
+    size_t hash_before = hash_board_state(b);
+    Board b_copy = *b;
+    make_move_on_board(b, move);
+    Board b_move = *b;
+    b->side_to_move ^= 1;
+    bool in_check = king_in_check(b);
+    b->side_to_move ^= 1;
+    unmake_move_on_board(b, move);
+    size_t hash_after = hash_board_state(b);
+
+    if (hash_before != hash_after) DEBUG_hash_discrepancy(&b_copy, &b_move, b, move, id);
+
+    return in_check;
+}
+
+        /**
  * @brief Searches for the best move using a negamax algorithm with alpha-beta pruning.
  * 
  * @param b The current board state.
@@ -143,9 +135,7 @@ int search(Board *b, int depth, int alpha, int beta) {
     for (int i = 0; i < move_list.count; i++) {
         Move move = move_list.moves[i];
         std::string move_str = move_to_move_str(move);
-        make_move_on_board(b, move);
-        int eval = -search(b, depth - 1, -beta, -alpha);
-        unmake_move_on_board(b, move);
+        int eval = get_score(b, move, depth, alpha, beta, 4);
 
         if (eval >= beta) {
             return beta; // Move is better for the opponent, prune the search
@@ -194,4 +184,70 @@ Move random_search(Move *legal_move_list, int legal_move_count) {
     int idx = random % legal_move_count;
     Move chosen_move = legal_move_list[idx];
     return chosen_move;
+}
+
+Move pick_random_opening_move(Board *b, MoveList *move_list) {
+    // Determine which opening move array to use based on move number
+    int move_index = b->full_moves - 1 - 1; // 1-indexed, -1 for the first move
+    
+    // Get the appropriate opening moves for this turn and color
+    const Move *opening_moves = opening_moves_encoded[move_index][b->side_to_move];
+    
+    // Create a list of valid opening moves that are also legal
+    std::vector<Move> valid_opening_moves;
+    
+    // Check each opening move to see if it's in the legal move list
+    for (int i = 0; i < 10; ++i) {
+        Move opening_move = opening_moves[i];
+        
+        // Check if this opening move is in the legal moves
+        for (int j = 0; j < move_list->count; ++j) {
+            if (move_list->moves[j] == opening_move) {
+                valid_opening_moves.push_back(opening_move);
+                break;
+            }
+        }
+    }
+    
+    // If we found valid opening moves, pick one randomly
+    if (!valid_opening_moves.empty()) {
+        int random_index = rand() % valid_opening_moves.size();
+        return valid_opening_moves[random_index];
+    }
+    
+    // Fallback: if no opening moves are legal, select using negmax
+    return NO_MOVES;
+}
+
+int opening_bonus(int full_move_number) {
+    int move_index = full_move_number - 1; // 1-indexed
+    if (move_index >= 5) return 0;
+    return 100 - 15 * move_index;
+}
+
+void DEBUG_hash_discrepancy(Board *b_start, Board *b_middle, Board *b_final, Move move, int id) {
+    std::cout << id << " CHECK CHECK CHECK CHECK CHECK CHECK CHECK CHECK CHECK" << std::endl;
+    std::cout << "ERROR: Board state changed after make/unmake operations!" << std::endl;
+    std::cout << "move: " << move_to_move_str(move) << std::endl;
+    
+    std::cout << "######################################" << std::endl;
+    std::cout << "######################################" << std::endl;
+    std::cout << "Board before make_move:" << move_to_move_str(move) << std::endl;
+    print_board(b_start, true, true);
+    std::cout << "Board in the middle:" << std::endl;
+    print_board(b_middle, true, true);
+    std::cout << "Board after make_move:" << std::endl;
+    print_board(b_final, true, true);
+    
+    std::cout << "######################################" << std::endl;
+    std::cout << "PRINTING FROM BBS" << std::endl;
+    std::cout << "######################################" << std::endl;
+    std::cout << "Before make_move:" << move_to_move_str(move) << std::endl;
+    print_board_from_bbs(b_start, true);
+    std::cout << "In the middle:" << std::endl;
+    print_board_from_bbs(b_middle, true);
+    std::cout << "After make_move:" << std::endl;
+    print_board_from_bbs(b_final, true);
+    std::cout << "######################################" << std::endl;
+    std::cout << "CHECK CHECK CHECK CHECK CHECK CHECK CHECK CHECK CHECK" << std::endl;
 }

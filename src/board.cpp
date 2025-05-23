@@ -57,6 +57,49 @@ void print_board(Board *b, bool show_params, bool show_bitboards) {
     }
 }
 
+void print_board_from_bbs(Board *b, bool show_params) {
+    for (int rank = 7; rank >= 0; --rank) {
+        // Rank label
+        std::cout << (rank + 1) << " ";
+        for (int file = 0; file < 8; ++file) {
+            int square_idx = file_rank_to_square_idx(file, rank);
+            const char *symbol = "  "; // Default to empty square
+
+            // Check each of the 12 bitboards for a piece on this square
+            int found = 0;
+            for (int bb_idx = 0; bb_idx < 12; ++bb_idx) {
+                // Check if the bit for the current square_idx is set in the current bitboard
+                if ((b->bitboards[bb_idx] >> square_idx) & 1ULL) {
+                    found++;
+                    if (found == 1) {
+                        symbol = get_sprite_from_idx(bb_idx);
+                    } else {
+                        static char buf[3];
+                        snprintf(buf, sizeof(buf), "%02d", found);
+                        symbol = buf;
+                    }
+                }
+            }
+            const char *bg = is_light_square(file, rank) ? WHITE_BG : GREEN_BG;
+            std::cout << bg << symbol << RESET;
+        }
+        std::cout << std::endl;
+    }
+
+    // File labels
+    std::cout << "  ";
+    for (char c = 'a'; c <= 'h'; ++c) {
+        std::cout << c << ' ';
+    }
+    std::cout << std::endl;
+
+    // Show additional parameters if requested
+    if (show_params) {
+        std::cout << std::endl;
+        print_params(b);
+    }
+}
+
 void print_params(Board *b) {
     // Side to move
     std::cout << "Params: " << (b->side_to_move == 0 ? "w" : "b") << ' ';
@@ -155,4 +198,32 @@ bool exit_if_corrupt_bits(Board *b, Board b_history[BITBOARD_HISTORY_SIZE],
     }
 
     return false;
+}
+
+size_t hash_board_state(const Board* b) {
+    size_t seed = 0;
+
+    for (int i = 0; i < 64; ++i) {
+        seed ^= std::hash<uint8_t>{}(static_cast<uint8_t>(b->squares[i])) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    }
+
+    for (int i = 0; i < 12; ++i) {
+        seed ^= std::hash<U64>{}(b->bitboards[i]) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    }
+
+    seed ^= std::hash<uint8_t>{}(b->side_to_move) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    seed ^= std::hash<uint8_t>{}(b->castling_rights) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    seed ^= std::hash<uint8_t>{}(b->enpassant_square) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    seed ^= std::hash<uint8_t>{}(b->half_move_clock) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    seed ^= std::hash<uint16_t>{}(b->full_moves) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    // Hash the undo state stack
+    for (const auto& state : b->undo_state_stack) {
+        seed ^= std::hash<bool>{}(state.side_to_move) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= std::hash<uint8_t>{}(state.castling_rights) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= std::hash<uint8_t>{}(state.enpassant_square) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= std::hash<uint8_t>{}(state.half_move_clock) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= std::hash<uint16_t>{}(state.full_moves) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    }
+
+    return seed;
 }

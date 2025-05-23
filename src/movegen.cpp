@@ -126,11 +126,8 @@ void filter_legal_moves(Board *b, MoveList move_list, MoveList *legal_move_list)
         std::string move_str = move_to_move_str(move_list.moves[i]);
         if (debug) std::cout << "[filter_legal_moves] Testing move: " << move_str << std::endl;
         
-        make_move_on_board(b, move_list.moves[i]);
-        b->side_to_move ^= 1; // Switch back as it gets inverted in make_move_on_board
-        bool in_check = king_in_check(b);
-        b->side_to_move ^= 1; // Switch back as it gets uninverted in unmake_move_on_board
-        unmake_move_on_board(b, move_list.moves[i]);
+        bool in_check = get_check(b, move_list.moves[i], 1);
+
         if (!in_check) {
             legal_move_list->moves[legal_move_list->count++] = move_list.moves[i];
         }
@@ -199,11 +196,11 @@ void generate_king_moves(Board *b, MoveList *move_list) {
     int king_sq = bit_scan_forward(king_bb);
 
     uint64_t king_targets = king_attacks[king_sq];
-    for (int t = 0; t < 64; t++) {
-        if ((king_targets & (1ULL << t)) && 
-            (!is_friendly(b, b->squares[t]) || b->squares[t] == NONE)) {
+    for (int sq_idx = 0; sq_idx < 64; sq_idx++) {
+        if ((king_targets & (1ULL << sq_idx)) && 
+            (!is_friendly(b, b->squares[sq_idx]) || b->squares[sq_idx] == NONE)) {
 
-            add_move(move_list, king_sq, t, 0);
+            add_move(move_list, king_sq, sq_idx, 0);
         }
     }
 }
@@ -346,12 +343,7 @@ void generate_pawn_moves(Board *b, MoveList *move_list) {
 // Check if a king is attacked after moving to a square
 bool king_in_check_after_move(Board *b, int from, int to) {
     Move king_move = encode_move(from, to, 0);
-    make_move_on_board(b, king_move);
-    b->side_to_move ^= 1;
-    bool in_check = king_in_check(b);
-    b->side_to_move ^= 1;
-    unmake_move_on_board(b, king_move);
-    return in_check;
+    return get_check(b, king_move, 2);
 }
 
 // Check if the game is over from the current board state

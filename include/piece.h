@@ -24,6 +24,10 @@ constexpr uint8_t COLOUR_MASK = 0b11000; // bits 4 and 5
 
 // Piece symbols for display
 constexpr char PIECE_SYMBOLS[] = {'.', 'K', 'P', 'N', 'B', 'R', 'Q'};
+const char BB_PIECE_SYMBOLS[12] = {
+    'K', 'P', 'N', 'B', 'R', 'Q', // White pieces (indices 0-5)
+    'k', 'p', 'n', 'b', 'r', 'q'  // Black pieces (indices 6-11)
+};
 
 // Unicode chess pieces (each ends with a space for consistent width)
 constexpr const char *WHITE_KING   = "♔ ";
@@ -50,5 +54,23 @@ inline constexpr const char *get_sprite(Piece piece) {
         case KING:   return (piece & WHITE) ? WHITE_KING   : BLACK_KING;
         case NONE:   return "  "; // Two spaces for empty square
         default:     return "? ";
+    }
+}
+
+inline constexpr const char *get_sprite_from_idx(int idx) {
+    switch (idx) {
+        case 0: return WHITE_KING;
+        case 1: return WHITE_PAWN;
+        case 2: return WHITE_KNIGHT;
+        case 3: return WHITE_BISHOP;
+        case 4: return WHITE_ROOK;
+        case 5: return WHITE_QUEEN;
+        case 6: return BLACK_KING;
+        case 7: return BLACK_PAWN;
+        case 8: return BLACK_KNIGHT;
+        case 9: return BLACK_BISHOP;
+        case 10: return BLACK_ROOK;
+        case 11: return BLACK_QUEEN;
+        default: return "??";
     }
 }

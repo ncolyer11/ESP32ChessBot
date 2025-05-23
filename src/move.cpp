@@ -229,6 +229,7 @@ void update_castling_rights(Board *b, int from, int to, Piece piece, Piece captu
     }
 }
 
+bool printed = false;
 // -- King in check detection (uses attack bitboards) --
 bool king_in_check(Board *b) {
     bool side_to_move = b->side_to_move;
@@ -237,6 +238,11 @@ bool king_in_check(Board *b) {
     if (king_bb == 0) {
         std::cout << "[king_in_check] King not found for side "
                   << (side_to_move ? "Black" : "White") << std::endl;
+        if (!printed) {
+            std::cout << "Board state:" << std::endl;
+            print_board_from_bbs(b, true);
+            printed = true;
+        }
         return false;
     }
 
@@ -329,6 +335,9 @@ U64 bitboard_for_piece(const Board *b, Piece piece) {
 }
 
 std::string move_to_move_str(Move move) {
+    if (move == NO_MOVES) return "NO_MOVES";
+    if (move == INVALID_MOVE) return "INVALID_MOVE";
+
     int from = move_from(move);
     int to = move_to(move);
     int flag = move_flag(move);

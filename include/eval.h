@@ -15,8 +15,12 @@ struct PhaseValues {
 //                                                king, pawn, knight, bishop, rook, queen
 inline constexpr int simple_base_values[] = {  0, 4000, 100,  320,    330,    500,  900 };
 
+constexpr float endgame_mat_start = simple_base_values[ROOK] * 2 
+                                  + simple_base_values[BISHOP]
+                                  + simple_base_values[KNIGHT];
+
 // Piece-Square Tables sourced from: https://www.chessprogramming.org/Simplified_Evaluation_Function
-constexpr int pawn_pos_table[64] = {
+constexpr int mg_pawn_pos_table[64] = {
     0,  0,  0,  0,  0,  0,  0,  0,
     50, 50, 50, 50, 50, 50, 50, 50,
     10, 10, 20, 30, 30, 20, 10, 10,
@@ -26,6 +30,19 @@ constexpr int pawn_pos_table[64] = {
     5, 10, 10,-20,-20, 10, 10,  5,
     0,  0,  0,  0,  0,  0,  0,  0
 };
+
+constexpr int eg_pawn_pos_table[64] = {
+    0,   0,   0,   0,   0,   0,   0,   0,
+   30,  60,  70,  80,  80,  70,  60,  30,
+   25,  50,  60,  70,  70,  60,  50,  25,
+   20,  40,  50,  60,  60,  50,  40,  20,
+   15,  30,  40,  50,  50,  40,  30,  15,
+   10,  20,  30,  40,  40,  30,  20,  10,
+    5,  10,  20,  30,  30,  20,  10,   5,
+    0,   5,  10,  15,  15,  10,   5,   0
+};
+ 
+
 constexpr int knight_pos_table[64] = {
     -50,-40,-30,-30,-30,-30,-40,-50,
     -40,-20,  0,  0,  0,  0,-20,-40,
