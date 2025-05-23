@@ -26,7 +26,6 @@
 *.a
 *.lib
 
-create_project.ps1
 .vscode/settings.json
 out.txt
 test.exe

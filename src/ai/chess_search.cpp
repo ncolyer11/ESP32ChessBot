@@ -9,6 +9,7 @@
 int search(Board *b, int depth, int alpha, int beta);
 void sort_moves(Board *b, MoveList* move_list);
 Move find_best_move(Board *b, MoveList *move_list, int depth);
+Move pick_random_opening_move(Board *b, MoveList *move_list);
 
 // infinities
 constexpr int pos_infinity = 10000000;
@@ -46,6 +47,14 @@ Move find_best_move(Board *b, MoveList *move_list, int depth) {
     generate_moves(b, move_list);
     sort_moves(b, move_list);
 
+    if (b->full_moves <= 3) {
+        Move opening_move = pick_random_opening_move(b, move_list);
+        if (opening_move != NO_MOVES) {
+            std::cout << "Opening move: " << move_to_move_str(opening_move) << std::endl;
+            return opening_move;
+        }
+    }
+
     int alpha = neg_infinity;
     int beta = pos_infinity;
     Move best_move = -1;
@@ -53,23 +62,66 @@ Move find_best_move(Board *b, MoveList *move_list, int depth) {
     // std::cout << "Searching for best move at depth " << depth << "..." << std::endl;
     for (int i = 0; i < move_list->count; ++i) {
         Move move = move_list->moves[i];
-        // std::string move_str = move_to_move_str(move);
+        std::string move_str = move_to_move_str(move);
         
         make_move_on_board(b, move);
         int score = -search(b, depth - 1, -beta, -alpha);
         unmake_move_on_board(b, move);
 
-        // std::cout << "Move " << move_str << " has score " << score << std::endl;
+        std::cout << "Move " << move_str << " has score " << score << std::endl;
         if (score > alpha) {
             alpha = score;
             best_move = move;
         }
     }
 
-    // std::cout << "Best move found: " << move_to_move_str(best_move) << " with score " << alpha << std::endl;
+    std::cout << "Best move found: " << move_to_move_str(best_move) << " with score " << alpha << std::endl;
     return best_move;
 }
 
+Move pick_random_opening_move(Board *b, MoveList *move_list) {
+    // Determine which opening move array to use based on move number
+    int move_index = b->full_moves -1 - 1; // 0-index - 1 for the first move
+    std::cout << "Move index: " << move_index << std::endl;
+    
+    // Get the appropriate opening moves for this turn and color
+    const Move *opening_moves = opening_moves_encoded[move_index][b->side_to_move];
+    
+    // Create a list of valid opening moves that are also legal
+    std::vector<Move> valid_opening_moves;
+    
+    // Check each opening move to see if it's in the legal move list
+    for (int i = 0; i < 10; ++i) {
+        Move opening_move = opening_moves[i];
+        
+        // Check if this opening move is in the legal moves
+        for (int j = 0; j < move_list->count; ++j) {
+            if (move_list->moves[j] == opening_move) {
+                valid_opening_moves.push_back(opening_move);
+                break;
+            }
+        }
+    }
+    
+    // If we found valid opening moves, pick one randomly
+    if (!valid_opening_moves.empty()) {
+        int random_index = rand() % valid_opening_moves.size();
+        return valid_opening_moves[random_index];
+    }
+    
+    // Fallback: if no opening moves are legal, select using negmax
+    return NO_MOVES;
+}
+
+/**
+ * @brief Searches for the best move using a negamax algorithm with alpha-beta pruning.
+ * 
+ * @param b The current board state.
+ * @param depth The search depth.
+ * @param alpha The alpha value for alpha-beta pruning.
+ * @param beta The beta value for alpha-beta pruning.
+ * @return int The evaluation score of the position.
+ */
 int search(Board *b, int depth, int alpha, int beta) {
     if (depth == 0) {
         return evaluate(b);

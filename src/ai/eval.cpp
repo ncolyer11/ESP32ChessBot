@@ -4,6 +4,15 @@
 #include "board.h"
 #include "piece.h" 
 
+int manhattan_distance(int square1, int square2);
+int num_rook_moves_to_reach_square(int from, int to);
+int mop_up_eval(
+    Board *b,
+    int my_material,
+    int opponent_material,
+    float endgame_weight
+);
+
 int evaluate(Board *b) {
     const Piece* board_squares = b->squares;
     bool side_to_move_is_black = b->side_to_move;
@@ -17,8 +26,8 @@ int evaluate(Board *b) {
 
         bool is_black = (piece & BLACK) != 0;
         int color_idx = is_black ? 1 : 0;
-        // Flip square index for black's perspective for PSTs
-        int table_idx = is_black ? flip_square(square_idx) : square_idx; 
+        // Flip square index for white's perspective for PSTs as white is on the bottom
+        int table_idx = is_black ? square_idx : flip_square(square_idx); 
 
         int base_value = 0;
         int positional_value = 0; // Initialize positional value
@@ -46,14 +55,20 @@ int evaluate(Board *b) {
                 positional_value = queen_pos_table[table_idx];
                 break;
             case KING:
-                base_value = 0; // King material value is 0
+                base_value = simple_base_values[KING];
                 positional_value = mg_king_table[table_idx]; 
                 break;
-            default: break; 
         }
 
         // Add both base material value and positional value
         side_score[color_idx] += base_value + positional_value;
+
+        // Debug: Print piece info and score
+        // std::cout << "Square: " << square_idx << ", Piece: " << (int)type
+        //           << ", Color: " << (is_black ? "Black" : "White")
+        //           << ", Base: " << base_value
+        //           << ", Positional: " << positional_value
+        //           << ", SideScore[" << color_idx << "]: " << side_score[color_idx] << std::endl;
     }
 
     // Calculate material difference from the perspective of the side to move
@@ -62,28 +77,54 @@ int evaluate(Board *b) {
 
     int material_difference = side_score[player_idx] - side_score[opponent_idx];
 
-    return material_difference;
+    // Debug: Print final scores
+    // std::cout << "Final Side Scores: White=" << side_score[0]
+    //           << ", Black=" << side_score[1]
+    //           << ", Side to move: " << (side_to_move_is_black ? "Black" : "White")
+    //           << ", Eval: " << material_difference << std::endl;
+
+    int my_material = 0;
+    int opponent_material = 0;
+    float endgame_weight = 0.0f;
+    int mop_up_score = mop_up_eval(b, my_material, opponent_material, endgame_weight);
+
+    return material_difference + mop_up_score;
 }
 
 // The force_king_to_corner_endgame_eval function is currently not used in evaluate(),
 // but its definition remains for future re-introduction if needed.
-int force_king_to_corner_endgame_eval(int friendly_king_square,
-                                       int opponent_king_square,
-                                       float endgame_weight) {
-    int opp_file = opponent_king_square & 7;
-    int opp_rank = opponent_king_square >> 3;
-    int friend_file = friendly_king_square & 7;
-    int friend_rank = friendly_king_square >> 3;
+int mop_up_eval(
+    Board *b,
+    int my_material,
+    int opponent_material,
+    float endgame_weight
+) {
+    int mop_up_score = 0;
+    int friendly_colour = b->side_to_move ? BLACK : WHITE;
+    int opponent_colour = b->side_to_move ? WHITE : BLACK;
+    int pawn_threshold = simple_base_values[2] * 2;
+    if (my_material > opponent_material + pawn_threshold && endgame_weight > 0.0f) {
 
-    int dist_to_center_file = opp_file < 4 ? (3 - opp_file) : (opp_file - 4);
-    int dist_to_center_rank = opp_rank < 4 ? (3 - opp_rank) : (opp_rank - 4);
-    int dist_to_center = dist_to_center_file + dist_to_center_rank;
+        int friendly_king_square = bit_scan_forward(b->bitboards[KING | friendly_colour]);
+        int opponent_king_square = bit_scan_forward(b->bitboards[KING | opponent_colour]);
+        mop_up_score += manhattan_distance(friendly_king_square, opponent_king_square) * 10;
+        int ortho_dist = num_rook_moves_to_reach_square(friendly_king_square, opponent_king_square);
+        mop_up_score += (14 - ortho_dist) * 4;
+        return static_cast<int>(mop_up_score * endgame_weight);
+    }
+    return 0;
+}
 
-    int king_file_diff = std::abs(opp_file - friend_file);
-    int king_rank_diff = std::abs(opp_rank - friend_rank);
-    int king_distance = king_file_diff + king_rank_diff;
+int manhattan_distance(int square1, int square2) {
+    int file1 = square1 % 8;
+    int rank1 = square1 / 8;
+    int file2 = square2 % 8;
+    int rank2 = square2 / 8;
+    return std::abs(file1 - file2) + std::abs(rank1 - rank2);
+}
 
-    int base_bonus = dist_to_center * 8 + king_distance * 4;
-
-    return static_cast<int>(base_bonus * endgame_weight);
+int num_rook_moves_to_reach_square(int from, int to) {
+    int file_diff = std::abs((from % 8) - (to % 8));
+    int rank_diff = std::abs((from / 8) - (to / 8));
+    return file_diff + rank_diff;
 }

@@ -16,11 +16,12 @@
  * I think this is caused by legal_move_list not being updated
  */
 
-constexpr int DEPTH = 6; // depth for the bot to search
+constexpr int DEPTH = 1; // depth for the bot to search
 
 void play(Board *b);
-
+// void print_all_opening_moves();
 int main() {
+    // print_all_opening_moves();
     check_for_test_mode();
     
     // Seed rng for picking a random move (and later a random gm opening move)
@@ -41,7 +42,19 @@ int main() {
 
     return 0;
 }
-
+// void print_all_opening_moves() {
+//     const char* move_number_names[3] = {"First", "Second", "Third"};
+//     const char* color_names[2] = {"White", "Black"};
+//     for (int move_num = 0; move_num < 3; ++move_num) {
+//         for (int color = 0; color < 2; ++color) {
+//             std::cout << move_number_names[move_num] << " move options for " << color_names[color] << ":\n";
+//             for (int i = 0; i < 10; ++i) {
+//                 Move move = opening_moves_encoded[move_num][color][i];
+//                 std::cout << "  " << move_to_move_str(move) << " (0x" << std::hex << move << std::dec << ")\n";
+//             }
+//         }
+//     }
+// }
 void play(Board *b) {
     while (true) {
         print_board(b, true, MODE || false); // show params, show bitboards or testing

@@ -14,10 +14,6 @@ struct PhaseValues {
 
 //                                                king, pawn, knight, bishop, rook, queen
 inline constexpr int simple_base_values[] = {  0, 4000, 100,  320,    330,    500,  900 };
-// Kaufman 2021 values (scaled ×100)
-inline constexpr PhaseValues midgame_values = {  80, 320, 330, {470, 450}, {  0,   0}, 30 };
-inline constexpr PhaseValues threshold_values = {  90, 320, 330, {480, 490}, {940, 870}, 40 };
-inline constexpr PhaseValues endgame_values = { 100, 320, 330, {530, 500}, {  0,   0}, 50 };
 
 // Piece-Square Tables sourced from: https://www.chessprogramming.org/Simplified_Evaluation_Function
 constexpr int pawn_pos_table[64] = {
