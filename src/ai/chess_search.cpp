@@ -31,7 +31,7 @@ Move get_next_bot_move(Board *b, int depth) {
 }
 
 Move find_best_move(Board *b, MoveList *move_list, int depth) {
-    // std::cout << "Searching for best move at depth " << depth << "..." << std::endl;
+    std::cout << "Searching for best move at depth " << depth << "..." << std::endl;
     generate_moves(b, move_list);
     if (move_list->count == 0) return NO_MOVES; // Game over
     sort_moves(b, move_list);
@@ -57,14 +57,14 @@ Move find_best_move(Board *b, MoveList *move_list, int depth) {
         
         int score = get_score(b, move, depth, alpha, beta, 2);
 
-        // std::cout << "Move " << move_str << " has score " << score << std::endl;
+        std::cout << "Move " << move_str << " has score " << score << std::endl;
         if (score > alpha) {
             alpha = score;
             best_move = move;
         }
     }
 
-    // std::cout << "Best move found: " << move_to_move_str(best_move) << " with score " << alpha << std::endl;
+    std::cout << "Best move found: " << move_to_move_str(best_move) << " with score " << alpha << std::endl;
 
     return (alpha > opening_move_score) || !opening_move ? best_move : opening_move;
 }
@@ -159,7 +159,7 @@ void sort_moves(Board *b, MoveList* move_list) {
 
         // Good value trades are preferred
         if (capture_piece_type != NONE) {
-            est_move_score = 9 * simple_base_values[capture_piece_type] 
+            est_move_score = 8 * simple_base_values[capture_piece_type] 
                                - simple_base_values[move_piece_type];
         }
 

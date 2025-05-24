@@ -1,11 +1,11 @@
 SHELL = cmd.exe
 
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -O2
+CXXFLAGS = -std=c++20 -Wall -Wextra -O2
 
 SRCS = main.cpp \
-       src/board.cpp src/boardRepresentation.cpp src/util.cpp src/fen.cpp src/move.cpp \
-       src/ai/eval.cpp src/movegen.cpp src/ai/opening.cpp src/ai/chess_search.cpp
+	src/board.cpp src/boardRepresentation.cpp src/util.cpp src/fen.cpp src/move.cpp \
+	src/ai/eval.cpp src/movegen.cpp src/ai/opening.cpp src/ai/chess_search.cpp
 
 OBJDIR = build
 DEPDIR = build

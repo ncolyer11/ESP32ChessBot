@@ -17,7 +17,7 @@
  * I think this is caused by legal_move_list not being updated
  */
 
-constexpr int DEPTH = 6; // depth for the bot to search
+constexpr int DEPTH = 4; // depth for the bot to search
 
 void play(Board *b);
 void test_fens();
@@ -90,10 +90,7 @@ void play(Board *b) {
 
 void test_fens() {
     std::vector<std::string> fens = {
-        // "6k1/8/8/8/8/8/PPPPPPPP/4K3 b - - 2 73",
-        // "6k1/PPPPPPPP/8/8/8/8/8/4K3 b - - 2 73",
-        "5k2/2r1b3/3ppp2/8/8/8/PPPPPPPP/2R1K1N1 b - - 2 73",
-        // starting_fen
+        rook_only_cm_fen
     };
 
     for (const auto &fen : fens) {

@@ -7,7 +7,7 @@
 
 int manhattan_distance(int square1, int square2);
 int num_rook_moves_to_reach_square(int from, int to);
-int mop_up_eval(Board *b, int my_material, int op_material, float endgame_weight );
+int mop_up_eval(Board *b, int my_material, int op_material, float endgame_weight, bool friendly_is_black);
 void get_materials(Board *b, int *my_material, int *op_material);
 float endgame_phase_weight(int materials_no_pawns);
 int manhattan_distance_from_centre(int sq_idx);
@@ -21,7 +21,8 @@ int evaluate(Board *b) {
     // Calculate material difference from the perspective of the side to move
     int player_idx = my_is_black ? 1 : 0;
     int op_idx = player_idx ^ 1;
-    int side_score[2] = {0, 0}; // [0] for White, [1] for Black
+    int white_eval = 0;
+    int black_eval = 0;
 
     int my_material, op_material;
     get_materials(b, &my_material, &op_material);
@@ -38,8 +39,8 @@ int evaluate(Board *b) {
     float my_endgame_weight = endgame_phase_weight(my_mat_no_pawns);
     float op_endgame_weight = endgame_phase_weight(op_mat_no_pawns);
 
-    int my_mop_up = mop_up_eval(b, my_material, op_material, my_endgame_weight);
-    int opp_mop_up = mop_up_eval(b, my_material, op_material, op_endgame_weight);
+    int my_mop_up = mop_up_eval(b, my_material, op_material, op_endgame_weight, my_is_black);
+    int opp_mop_up = mop_up_eval(b, op_material, my_material, my_endgame_weight, my_is_black);
     
     side_score[player_idx] += my_mop_up;
     side_score[op_idx] += opp_mop_up;
@@ -89,29 +90,35 @@ void get_positional_values(Board *b, int side_score[2], bool my_is_black,
             }
         }
         
-        // Add both base material value and positional value
         side_score[is_black] += positional_value;
     }
 }
 
-// The force_king_to_corner_endgame_eval function is currently not used in evaluate(),
-// but its definition remains for future re-introduction if needed.
-int mop_up_eval(Board *b, int my_material, int op_material, float endgame_weight) {
+int mop_up_eval(Board *b, int my_material, int op_material, float endgame_weight, bool friendly_is_black) {
     int mop_up_score = 0;
-    int friendly_colour = b->side_to_move ? BLACK : WHITE;
-    int op_colour = b->side_to_move ? WHITE : BLACK;
-    int pawn_threshold = simple_base_values[2] * 2;
-    if (my_material > op_material + pawn_threshold && endgame_weight > 0.0f) {
+    int friendly_colour = friendly_is_black ? BLACK : WHITE;
+    int op_colour = friendly_is_black ? WHITE : BLACK;
+    int pawn_threshold = simple_base_values[2];
+    // std::cout << "[mop_up_eval] my_material: " << my_material
+    //           << ", op_material: " << op_material
+    //           << ", pawn_threshold: " << pawn_threshold
+    //           << ", endgame_weight: " << endgame_weight << std::endl;
+    if (my_material >= op_material + pawn_threshold && endgame_weight > 0.0f) {
 
         U64 friendly_king_bb = b->bitboards[piece_to_bb_idx(KING | friendly_colour)];
         U64 op_king_bb = b->bitboards[piece_to_bb_idx(KING | op_colour)];
         int friendly_king_square = bit_scan_forward(friendly_king_bb);
         int op_king_square = bit_scan_forward(op_king_bb);
-        mop_up_score += manhattan_distance_from_centre(friendly_king_square) * 10;
+        mop_up_score += manhattan_distance_from_centre(op_king_square) * 10;
         int ortho_dist = num_rook_moves_to_reach_square(friendly_king_square, op_king_square);
-        mop_up_score += (14 - ortho_dist) * 4;
+        mop_up_score += (14 - ortho_dist) * 4; // XXX tf
+        // std::cout << "[mop_up_eval] friendly_king_square: " << friendly_king_square
+        //           << ", op_king_square: " << op_king_square
+        //           << ", ortho_dist: " << ortho_dist
+        //           << ", mop_up_score (before weight): " << mop_up_score << std::endl;
         return static_cast<int>(mop_up_score * endgame_weight);
     }
+    // std::cout << "[mop_up_eval] No mop up bonus applied.\n";
     return 0;
 }
 
