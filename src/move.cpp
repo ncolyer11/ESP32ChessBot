@@ -71,9 +71,9 @@ bool make_move_on_board(Board *b, Move move, bool in_search) {
         squares_hash_history.push_back(new_hash);
     
         // maintain sliding window of last REP_HASHES hashes
-        b->repetition_hashes.push_back(new_hash);
-        if (b->repetition_hashes.size() > REP_HASHES) {
-            b->repetition_hashes.erase(b->repetition_hashes.begin()); // remove oldest
+        b->repeat_hashes.push_back(new_hash);
+        if (b->repeat_hashes.size() > REP_HASHES) {
+            b->repeat_hashes.erase(b->repeat_hashes.begin()); // remove oldest
         }
     }
 
@@ -142,15 +142,15 @@ void unmake_move_on_board(Board *b, Move move, bool in_search) {
 
     if (!in_search) {
         // Rollback the most recent hash out of the last REP_HASHES (and total history)
-        if (!squares_hash_history.empty() && !b->repetition_hashes.empty()) {
+        if (!squares_hash_history.empty() && !b->repeat_hashes.empty()) {
             // remove the latest hash from each
             squares_hash_history.pop_back();
 
-            // rebuild repetition_hashes from the end of the full history
-            b->repetition_hashes.clear();
+            // rebuild repeat_hashes from the end of the full history
+            b->repeat_hashes.clear();
             size_t n = std::min<size_t>(REP_HASHES, squares_hash_history.size());
-            b->repetition_hashes.insert(
-                b->repetition_hashes.end(),
+            b->repeat_hashes.insert(
+                b->repeat_hashes.end(),
                 squares_hash_history.end() - n,
                 squares_hash_history.end()
             );

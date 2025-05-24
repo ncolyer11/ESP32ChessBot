@@ -150,11 +150,7 @@ void filter_legal_moves(Board *b, MoveList move_list, MoveList *legal_move_list)
         // Check if hash appears 3 times already in the last REP_HASHES hashes
         size_t current_hash = hash_board_state(b, true);
         int count = std::count(squares_hash_history.begin(), squares_hash_history.end(), current_hash);
-        bool is_repetition = count >= 3; 
-        // if (is_repetition) {
-        //     b->repetition_hashes.push_back(current_hash);
-        //     squares_hash_history.push_back(current_hash);
-        // }
+        bool is_repetition = count >= 3;
 
         if (!in_check && !is_repetition) {
             legal_move_list->moves[legal_move_list->count++] = move_list.moves[i];
@@ -393,7 +389,7 @@ bool check_end_game_conditions(Board *b, int legal_moves_count) {
         return false;
     }
 
-    if (is_repetition(b->repetition_hashes)) {
+    if (is_repetition(b->repeat_hashes)) {
         print_board(b, true);
         std::cout << "Draw by threefold repetition!" << std::endl;
         return false;
@@ -408,20 +404,11 @@ bool check_end_game_conditions(Board *b, int legal_moves_count) {
     return true;
 }
 
-bool is_repetition(const std::vector<size_t> &repetition_hashes) {
-    if (repetition_hashes.size() < 3) return false; // Not enough moves for repetition
-    size_t current_hash = repetition_hashes.back();
-    int count = std::count(repetition_hashes.begin(), repetition_hashes.end(), current_hash);
-    if (count >=3) {
-        // print all hashes:
-        std::cout << "Repetition detected! Hashes: ";
-        for (size_t hash : repetition_hashes) {
-            std::cout << std::hex << hash << " ";
-        }
-        std::cout << std::dec << std::endl;
-        std::cout << "Current hash: " << std::hex << current_hash << std::dec << std::endl;
-    }
-    return count >= 3; // Repetition if the current hash appears 3 or more times
+bool is_repetition(const std::vector<size_t> &repeat_hashes) {
+    if (repeat_hashes.size() < 3) return false; // Not enough moves for repetition
+    size_t current_hash = repeat_hashes.back();
+    int count = std::count(repeat_hashes.begin(), repeat_hashes.end(), current_hash);
+    return count >= 3 && (player1_is_human || player2_is_human); // screw this bot vs bot doesnt give one about 3-fold repetition
 }
 
 bool is_checkmate(int legal_moves_count, bool is_king_in_check) {

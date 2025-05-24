@@ -30,7 +30,7 @@ Move get_next_bot_move(Board *b, int depth) {
     MoveList move_list = { {}, 0 };
     Move chosen_move = find_best_move(b, &move_list, depth);
     // check_end_game_conditions might not be strictly necessary if find_best_move handles NO_MOVES
-    if (chosen_move == NO_MOVES || (move_list.count > 0 && !check_end_game_conditions(b, move_list.count))) return NO_MOVES;
+    if (!check_end_game_conditions(b, move_list.count)) return NO_MOVES;
     
     std::string move_str = move_to_move_str(chosen_move);
     std::string colour_to_move = (b->side_to_move == 0 ? "White" : "Black");
@@ -64,24 +64,20 @@ Move find_best_move(Board *b, MoveList *move_list, int depth) {
     for (int i = 0; i < move_list->count; ++i) {
         Move move = move_list->moves[i];
         std::string move_str = move_to_move_str(move);
-        // std::cout << "[DEBUG] Evaluating move: " << move_str << std::endl;
         int score = get_score(b, move, depth, alpha, beta, 0, 2);
-        // std::cout << "[DEBUG] Move: " << move_str << " score: " << score << " at depth: " << depth << std::endl << std::endl << std::endl;
+
 
         if (score > alpha) {
             alpha = score;
             best_move = move;
-            // std::cout << "[DEBUG] New best move: " << move_str << " with score: " << score << std::endl;
         }
     }
 
     if (opening_move == NO_MOVES) {
-        // std::cout << "[DEBUG] Best move selected: " << move_to_move_str(best_move) << " with score: " << alpha << std::endl;
         return best_move;
     }
     Move chosen = (alpha > opening_move_score) ? best_move : opening_move;
-    // std::cout << "[DEBUG] Final chosen move: " << move_to_move_str(chosen) << " with score: " 
-            //   << ((alpha > opening_move_score) ? alpha : opening_move_score) << std::endl;
+
     return chosen;
 }
 
@@ -104,7 +100,7 @@ int search(Board *b, int depth_remaining, int alpha, int beta, int ply_count) {
     
     if (move_list.count == 0) {
         return (king_in_check(b)) ? -(MATE_BASE_SCORE - ply_count) : 0; // Checkmate or stalemate
-    }
+    } 
     
     // Heuristically presort moves to have relatively better ones first
     sort_moves(b, &move_list);
@@ -114,10 +110,7 @@ int search(Board *b, int depth_remaining, int alpha, int beta, int ply_count) {
         
         int eval = get_score(b, move, depth_remaining, alpha, beta, ply_count + 1, 4);
         
-        // std::cout << "[DEBUG] Move: " << move_str << " score: " << eval << " at depth: " << depth_remaining << std::endl;
-
         if (eval >= beta) {
-            // std::cout << "[DEBUG] Move: " << move_str << " is a beta cut-off at depth: " << depth_remaining << std::endl << std::endl;
             return beta; // Move is better for the opponent, prune the search
         }
         alpha = std::max(alpha, eval);
@@ -130,9 +123,7 @@ int search(Board *b, int depth_remaining, int alpha, int beta, int ply_count) {
 // Search all captures and checks, returning the best score
 int search_all_captures(Board *b, int alpha, int beta) {
     int eval = evaluate(b);
-    // std::cout << "[DEBUG] Quiescence eval: " << eval << " alpha: " << alpha << " beta: " << beta << std::endl;
     if (eval >= beta) {
-        // std::cout << "[DEBUG] Quiescence beta cut-off: " << eval << " >= " << beta << std::endl;
         return beta; // Beta cut-off
     }
     alpha = std::max(alpha, eval);
@@ -143,21 +134,17 @@ int search_all_captures(Board *b, int alpha, int beta) {
 
     for (int i = 0; i < move_list.count; i++) {
         std::string move_str = move_to_move_str(move_list.moves[i]);
-        // std::cout << "[DEBUG] Quiescence evaluating move: " << move_str << std::endl;
         make_move_on_board(b, move_list.moves[i], true);
         eval = -search_all_captures(b, -beta, -alpha);
         unmake_move_on_board(b, move_list.moves[i], true);
 
-        // std::cout << "[DEBUG] Quiescence move: " << move_str << " score: " << eval << std::endl;
 
         if (eval >= beta) {
-            // std::cout << "[DEBUG] Quiescence beta cut-off on move: " << move_str << " score: " << eval << std::endl;
             return beta; // Beta cut-off
         }
         alpha = std::max(alpha, eval);
     }
 
-    // std::cout << "[DEBUG] Quiescence returning alpha: " << alpha << std::endl;
     return alpha;
 }
 
