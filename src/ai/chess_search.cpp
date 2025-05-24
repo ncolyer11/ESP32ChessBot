@@ -5,14 +5,16 @@
 #include "chess_search.h"
 #include "eval.h"
 #include "fen.h"
+#include "move.h"
 #include "movegen.h"
 #include "util.h"
 
 int search(Board *b, int depth, int alpha, int beta, int ply_count);
+int search_all_captures(Board *b, int alpha, int beta);
 void sort_moves(Board *b, MoveList* move_list);
 Move find_best_move(Board *b, MoveList *move_list, int depth);
 Move pick_random_opening_move(Board *b, MoveList *move_list);
-int get_score(Board *b, Move move, int depth_remaining, int alpha, int beta, int id, int ply_of_parent_node);
+int get_score(Board *b, Move move, int depth_remaining, int alpha, int beta, int parent_ply, int id);
 void DEBUG_hash_discrepancy(Board *b_start, Board *b_middle, Board *b_final, Move move, int id);
 int opening_bonus(int full_move_number);
 
@@ -49,7 +51,7 @@ Move find_best_move(Board *b, MoveList *move_list, int depth) {
     if (b->full_moves <= 3 + 1) { // as 1-indexed and starts from move 1
         opening_move = pick_random_opening_move(b, move_list);
         if (opening_move != NO_MOVES) {
-            opening_move_score = get_score(b, opening_move, depth, alpha, beta, 1, 0) 
+            opening_move_score = get_score(b, opening_move, depth, alpha, beta, 0, 1) 
                                  + opening_bonus(b->full_moves);
         }
     }
@@ -59,56 +61,33 @@ Move find_best_move(Board *b, MoveList *move_list, int depth) {
         alpha = opening_move_score;
     }
 
-
     for (int i = 0; i < move_list->count; ++i) {
         Move move = move_list->moves[i];
         std::string move_str = move_to_move_str(move);
-        
-        int score = get_score(b, move, depth, alpha, beta, 2, 0);
+        // std::cout << "[DEBUG] Evaluating move: " << move_str << std::endl;
+        int score = get_score(b, move, depth, alpha, beta, 0, 2);
+        // std::cout << "[DEBUG] Move: " << move_str << " score: " << score << " at depth: " << depth << std::endl << std::endl << std::endl;
 
         if (score > alpha) {
             alpha = score;
             best_move = move;
+            // std::cout << "[DEBUG] New best move: " << move_str << " with score: " << score << std::endl;
         }
     }
 
-    if (opening_move == NO_MOVES) return best_move;
-    return (alpha > opening_move_score) ? best_move : opening_move;
-}
-
-int get_score(Board *b, Move move, int depth_remaining, int alpha, int beta, int id, int ply_of_parent_node) { 
-    size_t hash_before = hash_board_state(b);
-    Board b_copy = *b;
-    make_move_on_board(b, move);
-    Board b_move = *b;
-    int score = -search(b, depth_remaining - 1, -beta, -alpha, ply_of_parent_node + 1);
-    unmake_move_on_board(b, move);
-    size_t hash_after = hash_board_state(b);
-
-    if (hash_before != hash_after) DEBUG_hash_discrepancy(&b_copy, &b_move, b, move, id);
-
-    return score;
-}
-
-bool get_check(Board *b, Move move, int id) { 
-    size_t hash_before = hash_board_state(b);
-    Board b_copy = *b;
-    make_move_on_board(b, move);
-    Board b_move = *b;
-    b->side_to_move ^= 1;
-    bool in_check = king_in_check(b);
-    b->side_to_move ^= 1;
-    unmake_move_on_board(b, move);
-    size_t hash_after = hash_board_state(b);
-
-    if (hash_before != hash_after) DEBUG_hash_discrepancy(&b_copy, &b_move, b, move, id);
-
-    return in_check;
+    if (opening_move == NO_MOVES) {
+        // std::cout << "[DEBUG] Best move selected: " << move_to_move_str(best_move) << " with score: " << alpha << std::endl;
+        return best_move;
+    }
+    Move chosen = (alpha > opening_move_score) ? best_move : opening_move;
+    // std::cout << "[DEBUG] Final chosen move: " << move_to_move_str(chosen) << " with score: " 
+            //   << ((alpha > opening_move_score) ? alpha : opening_move_score) << std::endl;
+    return chosen;
 }
 
 /**
  * @brief Searches for the best move using a negamax algorithm with alpha-beta pruning.
- * * @param b The current board state.
+ * @param b The current board state.
  * @param depth The search depth. // This is depth_remaining
  * @param alpha The alpha value for alpha-beta pruning.
  * @param beta The beta value for alpha-beta pruning.
@@ -117,7 +96,7 @@ bool get_check(Board *b, Move move, int id) {
  */
 int search(Board *b, int depth_remaining, int alpha, int beta, int ply_count) {
     if (depth_remaining == 0) {
-        return evaluate(b);
+        return search_all_captures(b, alpha, beta);
     }
 
     MoveList move_list;
@@ -131,28 +110,85 @@ int search(Board *b, int depth_remaining, int alpha, int beta, int ply_count) {
     sort_moves(b, &move_list);
     for (int i = 0; i < move_list.count; i++) {
         Move move = move_list.moves[i];
+        std::string move_str = move_to_move_str(move);
         
-        size_t hash_before = hash_board_state(b);
-        Board b_copy = *b; // For DEBUG_hash_discrepancy if make/unmake is imperfect
+        int eval = get_score(b, move, depth_remaining, alpha, beta, ply_count + 1, 4);
         
-        make_move_on_board(b, move);
-        Board b_made_move_copy = *b; // For DEBUG_hash_discrepancy
-        
-        int eval = -search(b, depth_remaining - 1, -beta, -alpha, ply_count + 1);
-        
-        unmake_move_on_board(b, move);
-        size_t hash_after = hash_board_state(b);
-
-        if (hash_before != hash_after) DEBUG_hash_discrepancy(&b_copy, &b_made_move_copy, b, move, 4);
-
+        // std::cout << "[DEBUG] Move: " << move_str << " score: " << eval << " at depth: " << depth_remaining << std::endl;
 
         if (eval >= beta) {
+            // std::cout << "[DEBUG] Move: " << move_str << " is a beta cut-off at depth: " << depth_remaining << std::endl << std::endl;
             return beta; // Move is better for the opponent, prune the search
         }
         alpha = std::max(alpha, eval);
     }
 
+    // std::cout << std::endl;
     return alpha;
+}
+
+// Search all captures and checks, returning the best score
+int search_all_captures(Board *b, int alpha, int beta) {
+    int eval = evaluate(b);
+    // std::cout << "[DEBUG] Quiescence eval: " << eval << " alpha: " << alpha << " beta: " << beta << std::endl;
+    if (eval >= beta) {
+        // std::cout << "[DEBUG] Quiescence beta cut-off: " << eval << " >= " << beta << std::endl;
+        return beta; // Beta cut-off
+    }
+    alpha = std::max(alpha, eval);
+
+    MoveList move_list;
+    generate_moves(b, &move_list, true);
+    sort_moves(b, &move_list);
+
+    for (int i = 0; i < move_list.count; i++) {
+        std::string move_str = move_to_move_str(move_list.moves[i]);
+        // std::cout << "[DEBUG] Quiescence evaluating move: " << move_str << std::endl;
+        make_move_on_board(b, move_list.moves[i], true);
+        eval = -search_all_captures(b, -beta, -alpha);
+        unmake_move_on_board(b, move_list.moves[i], true);
+
+        // std::cout << "[DEBUG] Quiescence move: " << move_str << " score: " << eval << std::endl;
+
+        if (eval >= beta) {
+            // std::cout << "[DEBUG] Quiescence beta cut-off on move: " << move_str << " score: " << eval << std::endl;
+            return beta; // Beta cut-off
+        }
+        alpha = std::max(alpha, eval);
+    }
+
+    // std::cout << "[DEBUG] Quiescence returning alpha: " << alpha << std::endl;
+    return alpha;
+}
+
+int get_score(Board *b, Move move, int depth_remaining, int alpha, int beta, int parent_ply, int id) {
+    size_t hash_before = hash_board_state(b);
+    Board b_copy = *b;
+    make_move_on_board(b, move, true);
+    Board b_move = *b;
+    int score = -search(b, depth_remaining - 1, -beta, -alpha, parent_ply + 1);
+    unmake_move_on_board(b, move, true);
+    size_t hash_after = hash_board_state(b);
+
+    if (hash_before != hash_after) DEBUG_hash_discrepancy(&b_copy, &b_move, b, move, id);
+
+    return score;
+}
+
+bool get_check(Board *b, Move move, int id) { 
+    size_t hash_before = hash_board_state(b);
+    Board b_copy = *b;
+    make_move_on_board(b, move, true);
+    Board b_move = *b;
+    b->side_to_move ^= 1;
+    bool in_check = king_in_check(b);
+    b->side_to_move ^= 1;
+    unmake_move_on_board(b, move, true);
+    size_t hash_after = hash_board_state(b);
+
+    if (hash_before != hash_after) DEBUG_hash_discrepancy(&b_copy, &b_move, b, move, id);
+
+    return in_check;
 }
 
 // Prioritise captures and checks

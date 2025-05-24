@@ -6,6 +6,7 @@
 
 #include "board.h"
 #include "boardRepresentation.h"
+#include "fen.h"
 #include "move.h"
 #include "movegen.h"
 #include "piece.h"
@@ -19,7 +20,6 @@ uint64_t king_attacks[64];
 
 Move gen_and_validate_all_moves(Board *b, MoveList *legal_move_list);
 Move process_command_moves(Board *b, std::string move_str);
-
 
 // Request next move from the current player
 Move get_next_player_move(Board *b) {
@@ -58,7 +58,17 @@ Move process_command_moves(Board *b, std::string move_str) {
     } else if (move_str == "r") {
         std::cout << "Resigning..." << std::endl;
         return INVALID_MOVE;
-    } else if (move_str == "u" || move_str == "z") {
+    } else if (move_str == "u") {
+        if (move_history.size() < 1) {
+            std::cout << "No move to undo." << std::endl;
+            return NO_MOVES;
+        }
+        Move last_move = move_history.back(); move_history.pop_back();
+        unmake_move_on_board(b, last_move);
+        std::cout << "Undoing last ply (half a move): " << move_to_move_str(last_move) << std::endl;
+        print_board(b, true, MODE);
+        return NO_MOVES;
+    } else if (move_str == "z") {
         if (move_history.size() < 2) {
             std::cout << "No moves to undo." << std::endl;
             return NO_MOVES;
@@ -70,6 +80,18 @@ Move process_command_moves(Board *b, std::string move_str) {
         std::cout << "Undoing last 2 plys (1 move): " << move_to_move_str(last_move)
                   << " and " << move_to_move_str(second_last_move) << std::endl;
         print_board(b, true, MODE);
+        return NO_MOVES;       
+    } else if (move_str == "f") {
+        std::cout << "Exporting FEN: " << export_position_to_fen(b) << std::endl;
+        return NO_MOVES;
+    } else if (move_str == "d") {
+        print_board_from_bbs(b, true);
+        return NO_MOVES;
+    } else if (move_str == "p") {
+        print_params(b);
+        return NO_MOVES;
+    } else if (move_str == "b") {
+        print_bitboards(b);
         return NO_MOVES;
     }
 
@@ -105,42 +127,39 @@ bool is_valid_move(Move *move, MoveList legal_move_list) {
  * Usage:
  *   Call generate_moves() before move selection or perft, and after making any board changes.
  */
-void generate_moves(Board *b, MoveList *legal_move_list) {
+void generate_moves(Board *b, MoveList *legal_move_list, bool only_captures) {
     // reset move count and both move and legal move lists
-    MoveList move_list = { {}, 0 };
+    MoveList move_list = { {}, 0 }; // XXX ADD ONLY CAPTURES LOGIC!!
     
-    generate_king_moves(b, &move_list);
-    generate_castling_moves(b, &move_list);
-    generate_sliding_moves(b, &move_list); // Queen, rook, bishop
-    generate_knight_moves(b, &move_list);
-    generate_pawn_moves(b, &move_list);
+    generate_king_moves(b, &move_list, only_captures);
+    generate_castling_moves(b, &move_list, only_captures);
+    generate_sliding_moves(b, &move_list, only_captures); // Queen, rook, bishop
+    generate_knight_moves(b, &move_list, only_captures);
+    generate_pawn_moves(b, &move_list, only_captures);
 
     filter_legal_moves(b, move_list, legal_move_list);
 }
 
 // -- Legal move filtering --
 void filter_legal_moves(Board *b, MoveList move_list, MoveList *legal_move_list) {
-    bool debug = 0;
     legal_move_list->count = 0;
     for (int i = 0; i < move_list.count; i++) {
         std::string move_str = move_to_move_str(move_list.moves[i]);
-        if (debug) std::cout << "[filter_legal_moves] Testing move: " << move_str << std::endl;
-        
+    
         bool in_check = get_check(b, move_list.moves[i], 1);
+        // Check if hash appears 3 times already in the last REP_HASHES hashes
+        size_t current_hash = hash_board_state(b, true);
+        int count = std::count(squares_hash_history.begin(), squares_hash_history.end(), current_hash);
+        bool is_repetition = count >= 3; 
+        // if (is_repetition) {
+        //     b->repetition_hashes.push_back(current_hash);
+        //     squares_hash_history.push_back(current_hash);
+        // }
 
-        if (!in_check) {
+        if (!in_check && !is_repetition) {
             legal_move_list->moves[legal_move_list->count++] = move_list.moves[i];
         }
-
-        if (!in_check) {
-            if (debug) std::cout << "[filter_legal_moves] Move is legal: " << move_str << std::endl;
-        } else {
-            if (debug) std::cout << "[filter_legal_moves] Move is illegal (king in check): " << move_str << std::endl;
-        }
-        if (debug) std::cout << std::endl;
     }
-    if (debug) std::cout << "[filter_legal_moves] Total legal moves: "
-                         << legal_move_list->count << std::endl;
 }
 
 // Attack table initialisation, saying at square sq, you have attacks...
@@ -189,7 +208,7 @@ void init_attack_bitboards() {
 }
 
 // -- King moves (not castling) --
-void generate_king_moves(Board *b, MoveList *move_list) {
+void generate_king_moves(Board *b, MoveList *move_list, bool only_captures) {
     Piece king_piece = KING | friendly_colour(b);
     U64 king_bb = b->bitboards[piece_to_bb_idx(king_piece)];
     if (!king_bb) return; // No king on the board
@@ -197,16 +216,19 @@ void generate_king_moves(Board *b, MoveList *move_list) {
 
     uint64_t king_targets = king_attacks[king_sq];
     for (int sq_idx = 0; sq_idx < 64; sq_idx++) {
+        Piece to_square = b->squares[sq_idx];
         if ((king_targets & (1ULL << sq_idx)) && 
-            (!is_friendly(b, b->squares[sq_idx]) || b->squares[sq_idx] == NONE)) {
-
+            (!is_friendly(b, to_square) || to_square == NONE)) {
+                
+            if (only_captures && to_square == NONE) continue; 
             add_move(move_list, king_sq, sq_idx, 0);
         }
     }
 }
 
 // -- Castling moves (call after king moves) --
-void generate_castling_moves(Board *b, MoveList *move_list) {
+void generate_castling_moves(Board *b, MoveList *move_list, bool only_captures) {
+    if (only_captures) return; // No castling moves if only captures are requested
     int king_sq = (friendly_colour(b) == WHITE) ? 4 : 60;
     // std::cout << "Castling rights: " << std::bitset<4>(b->castling_rights) << std::endl;
     // Kingside
@@ -240,7 +262,7 @@ void generate_castling_moves(Board *b, MoveList *move_list) {
 }
 
 // -- Sliding piece moves (rooks, bishops, queens) --
-void generate_sliding_moves(Board *b, MoveList *move_list) {
+void generate_sliding_moves(Board *b, MoveList *move_list, bool only_captures) {
     static const int directions[8] = {1, -1, 8, -8, 9, -9, 7, -7};
     for (int i = 0; i < 64; i++) {
         Piece p = b->squares[i];
@@ -256,6 +278,10 @@ void generate_sliding_moves(Board *b, MoveList *move_list) {
                 if (next < 0 || next >= 64 || abs((n % 8) - (next % 8)) > 2) break;
                 Piece target = b->squares[next];
                 if (is_friendly(b, target)) break;
+                if (only_captures && target == NONE) {
+                    n = next; // skip empty squares if only captures are requested
+                    continue;
+                }
                 add_move(move_list, i, next, 0);
                 if (target != NONE) break;
                 n = next;
@@ -265,59 +291,64 @@ void generate_sliding_moves(Board *b, MoveList *move_list) {
 }
 
 // -- Knight moves --
-void generate_knight_moves(Board *b, MoveList *move_list) {
+void generate_knight_moves(Board *b, MoveList *move_list, bool only_captures) {
     for (int i = 0; i < 64; i++) {
         if (b->squares[i] != (KNIGHT | friendly_colour(b))) continue;
         uint64_t attacks = knight_attacks[i];
-        for (int t = 0; t < 64; t++)
-            if ((attacks & (1ULL << t)) && !is_friendly(b, b->squares[t]))
+        for (int t = 0; t < 64; t++) {
+            Piece to_square = b->squares[t];
+            if ((attacks & (1ULL << t)) && !is_friendly(b, to_square)) {
+                if (only_captures && to_square == NONE) continue;
                 add_move(move_list, i, t, 0);
+            }
+        }
     }
 }
 
 // -- Pawn moves (single, double, capture, en passant, promotion) --
-void generate_pawn_moves(Board *b, MoveList *move_list) {
+void generate_pawn_moves(Board *b, MoveList *move_list, bool only_captures) {
     int direction = b->side_to_move ? -8 : 8;
     int start_rank = b->side_to_move ? 6 : 1;
     int promotion_rank = b->side_to_move ? 0 : 7;
     for (int sq_idx = 0; sq_idx < 64; sq_idx++) {
-        if (b->squares[sq_idx] != (PAWN | friendly_colour(b))) continue;
-        int to = sq_idx + direction;
-        // Forward
-        if (to >= 0 && to < 64 && b->squares[to] == NONE) {
-            if (to / 8 == promotion_rank) {
-                // Add the 4 different possible promotion moves
-                add_move(move_list, sq_idx, to, PROMOTION_QUEEN_FLAG); 
-                add_move(move_list, sq_idx, to, PROMOTION_KNIGHT_FLAG);
-                add_move(move_list, sq_idx, to, PROMOTION_ROOK_FLAG); 
-                add_move(move_list, sq_idx, to, PROMOTION_BISHOP_FLAG);
-            } else {
-                // Else it can't promote but still check if it can double push
-                add_move(move_list, sq_idx, to, 0);
-                // Double push from start
-                if (sq_idx / 8 == start_rank) {
-                    int dbl = sq_idx + 2 * direction;
-                    if (b->squares[dbl] == NONE) {
-                        add_move(move_list, sq_idx, dbl, DOUBLE_PAWN_FLAG);
+        if (b->squares[sq_idx] == (PAWN | friendly_colour(b))) {
+            // Forward move
+            int to = sq_idx + direction;
+            if (!only_captures && (to >= 0 && to < 64 && b->squares[to] == NONE)) {
+                if (to / 8 == promotion_rank) {
+                    // Add the 4 different possible promotion moves
+                    add_move(move_list, sq_idx, to, PROMOTION_QUEEN_FLAG); 
+                    add_move(move_list, sq_idx, to, PROMOTION_KNIGHT_FLAG);
+                    add_move(move_list, sq_idx, to, PROMOTION_ROOK_FLAG); 
+                    add_move(move_list, sq_idx, to, PROMOTION_BISHOP_FLAG);
+                } else {
+                    // Else it can't promote but still check if it can double push
+                    add_move(move_list, sq_idx, to, 0);
+                    // Double push from start
+                    if (sq_idx / 8 == start_rank) {
+                        int dbl = sq_idx + 2 * direction;
+                        if (b->squares[dbl] == NONE) {
+                            add_move(move_list, sq_idx, dbl, DOUBLE_PAWN_FLAG);
+                        }
                     }
                 }
             }
-        }
-        // Captures
-        for (int df = -1; df <= 1; df += 2) {
-            int file = sq_idx % 8;
-            int cap_file = file + df;
-            if (cap_file < 0 || cap_file > 7) continue;
-            int cap = sq_idx + direction + df;
-            if (cap < 0 || cap >= 64) continue;
-            if (b->squares[cap] != NONE && is_opponent(b, b->squares[cap])) {
-                if (cap / 8 == promotion_rank) {
-                    add_move(move_list, sq_idx, cap, PROMOTION_QUEEN_FLAG); 
-                    add_move(move_list, sq_idx, cap, PROMOTION_KNIGHT_FLAG);
-                    add_move(move_list, sq_idx, cap, PROMOTION_ROOK_FLAG); 
-                    add_move(move_list, sq_idx, cap, PROMOTION_BISHOP_FLAG);
-                } else {
-                    add_move(move_list, sq_idx, cap, 0);
+            // Captures
+            for (int df = -1; df <= 1; df += 2) {
+                int file = sq_idx % 8;
+                int cap_file = file + df;
+                if (cap_file < 0 || cap_file > 7) continue;
+                int cap = sq_idx + direction + df;
+                if (cap < 0 || cap >= 64) continue;
+                if (b->squares[cap] != NONE && is_opponent(b, b->squares[cap])) {
+                    if (cap / 8 == promotion_rank) {
+                        add_move(move_list, sq_idx, cap, PROMOTION_QUEEN_FLAG); 
+                        add_move(move_list, sq_idx, cap, PROMOTION_KNIGHT_FLAG);
+                        add_move(move_list, sq_idx, cap, PROMOTION_ROOK_FLAG); 
+                        add_move(move_list, sq_idx, cap, PROMOTION_BISHOP_FLAG);
+                    } else {
+                        add_move(move_list, sq_idx, cap, 0);
+                    }
                 }
             }
         }
@@ -362,6 +393,12 @@ bool check_end_game_conditions(Board *b, int legal_moves_count) {
         return false;
     }
 
+    if (is_repetition(b->repetition_hashes)) {
+        print_board(b, true);
+        std::cout << "Draw by threefold repetition!" << std::endl;
+        return false;
+    }
+
     if (is_stalemate(legal_moves_count, is_king_in_check)) {
         print_board(b, true);
         std::cout << "Stalemate!" << std::endl;
@@ -371,6 +408,21 @@ bool check_end_game_conditions(Board *b, int legal_moves_count) {
     return true;
 }
 
+bool is_repetition(const std::vector<size_t> &repetition_hashes) {
+    if (repetition_hashes.size() < 3) return false; // Not enough moves for repetition
+    size_t current_hash = repetition_hashes.back();
+    int count = std::count(repetition_hashes.begin(), repetition_hashes.end(), current_hash);
+    if (count >=3) {
+        // print all hashes:
+        std::cout << "Repetition detected! Hashes: ";
+        for (size_t hash : repetition_hashes) {
+            std::cout << std::hex << hash << " ";
+        }
+        std::cout << std::dec << std::endl;
+        std::cout << "Current hash: " << std::hex << current_hash << std::dec << std::endl;
+    }
+    return count >= 3; // Repetition if the current hash appears 3 or more times
+}
 
 bool is_checkmate(int legal_moves_count, bool is_king_in_check) {
     return (legal_moves_count == 0) && is_king_in_check;

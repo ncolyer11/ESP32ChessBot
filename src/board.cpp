@@ -139,12 +139,30 @@ void print_bitboards(Board *b) {
     }
 }
 
-size_t hash_board_state(const Board* b) {
-    return 0; // X disabled hashing for now
+size_t hash_last_undo_states(const Board* b, size_t seed) {
+    size_t num_to_hash = std::min<size_t>(5, b->undo_state_stack.size());
+    size_t start_idx = b->undo_state_stack.size() - num_to_hash;
+
+    for (size_t i = start_idx; i < b->undo_state_stack.size(); ++i) {
+        const auto& state = b->undo_state_stack[i];
+        seed ^= std::hash<bool>{}(state.side_to_move) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= std::hash<uint8_t>{}(state.castling_rights) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= std::hash<uint8_t>{}(state.enpassant_square) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= std::hash<uint8_t>{}(state.half_move_clock) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= std::hash<uint16_t>{}(state.full_moves) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    }
+
+    return seed;
+}
+
+size_t hash_board_state(const Board* b, bool squares_only) {
     size_t seed = 0;
 
     for (int i = 0; i < 64; ++i) {
         seed ^= std::hash<uint8_t>{}(static_cast<uint8_t>(b->squares[i])) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    }
+    if (squares_only) {
+        return seed; // Return early if only squares are to be hashed
     }
 
     for (int i = 0; i < 12; ++i) {
@@ -156,14 +174,9 @@ size_t hash_board_state(const Board* b) {
     seed ^= std::hash<uint8_t>{}(b->enpassant_square) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
     seed ^= std::hash<uint8_t>{}(b->half_move_clock) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
     seed ^= std::hash<uint16_t>{}(b->full_moves) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    // Hash the undo state stack
-    for (const auto& state : b->undo_state_stack) {
-        seed ^= std::hash<bool>{}(state.side_to_move) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        seed ^= std::hash<uint8_t>{}(state.castling_rights) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        seed ^= std::hash<uint8_t>{}(state.enpassant_square) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        seed ^= std::hash<uint8_t>{}(state.half_move_clock) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        seed ^= std::hash<uint16_t>{}(state.full_moves) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    }
+    
+    // Hash only the last 5 undo states (or fewer if stack is smaller)
+    seed = hash_last_undo_states(b, seed);
 
     return seed;
 }

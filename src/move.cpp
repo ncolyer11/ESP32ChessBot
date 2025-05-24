@@ -23,6 +23,7 @@ void undo_castling_move(Board *b, int from, int to, Piece moved);
 int partition(Move *moves, int *scores, int low, int high);
 
 std::vector<Move> move_history;
+std::vector<size_t> squares_hash_history;
 
 
 /** 
@@ -39,16 +40,44 @@ std::vector<Move> move_history;
  * 
  * @return true if the move was made successfully
  */
-bool make_move_on_board(Board *b, Move move) {
+bool make_move_on_board(Board *b, Move move, bool in_search) {
     if (!validate_move_encoding(move)) {
         std::cout << "[make_move_on_board] Invalid move encoding: " << move << std::endl;
         return false;
     }
+
     int from = move_from(move), to = move_to(move), flag = move_flag(move);
     Piece piece = b->squares[from];
     Piece captured = b->squares[to];
 
-    // Save the current state before making the move
+    if (piece == NONE) {
+        std::cout << "[make_move_on_board] No piece at source square: " << from << std::endl;
+        return false;
+    }
+    // this what seb lague is doing but i think his repetition detection is bugged 
+    // if ((piece & TYPE_MASK) == PAWN || captured != NONE) {
+    //     // clear hash history if a pawn move or capture is made
+    //     // if (!squares_hash_history.empty()) squares_hash_history.clear();
+    // } else {
+    // }
+    
+    if (!in_search) {
+        // save the move to history
+        move_history.push_back(move);
+
+        // also save a hash of the current board state for repetition detection
+        size_t new_hash = hash_board_state(b, true); 
+        // append to full hash history and to cycling window
+        squares_hash_history.push_back(new_hash);
+    
+        // maintain sliding window of last REP_HASHES hashes
+        b->repetition_hashes.push_back(new_hash);
+        if (b->repetition_hashes.size() > REP_HASHES) {
+            b->repetition_hashes.erase(b->repetition_hashes.begin()); // remove oldest
+        }
+    }
+
+    // save the current state before making the move
     UndoState state_to_save;
     state_to_save.side_to_move = b->side_to_move;
     state_to_save.castling_rights = b->castling_rights;
@@ -100,15 +129,33 @@ bool make_move_on_board(Board *b, Move move) {
  * @param b The board struct, passed by reference, to unmake the move on
  * @param move The move to be undone in algebraic notation (e.g., "d2d4", or e7e8q for a promotion).
  */
-void unmake_move_on_board(Board *b, Move move) {
+void unmake_move_on_board(Board *b, Move move, bool in_search) {
     // Ensure there's a state to pop
     if (b->undo_state_stack.empty()) {
         std::cerr << "ERROR: Undo stack is empty during unmake move operation." << std::endl;
         return; 
-    }    
+    }
+
     int from = move_from(move);
     int to = move_to(move);
     int flag = move_flag(move);
+
+    if (!in_search) {
+        // Rollback the most recent hash out of the last REP_HASHES (and total history)
+        if (!squares_hash_history.empty() && !b->repetition_hashes.empty()) {
+            // remove the latest hash from each
+            squares_hash_history.pop_back();
+
+            // rebuild repetition_hashes from the end of the full history
+            b->repetition_hashes.clear();
+            size_t n = std::min<size_t>(REP_HASHES, squares_hash_history.size());
+            b->repetition_hashes.insert(
+                b->repetition_hashes.end(),
+                squares_hash_history.end() - n,
+                squares_hash_history.end()
+            );
+        }
+    }
 
     // Pop the previous state from the stack
     UndoState restored_state = b->undo_state_stack.back(); b->undo_state_stack.pop_back();

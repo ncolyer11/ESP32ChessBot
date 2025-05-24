@@ -5,13 +5,11 @@
 #include "board.h"
 #include "piece.h" 
 
-int manhattan_distance(int square1, int square2);
-int num_rook_moves_to_reach_square(int from, int to);
-int mop_up_value(Board *b, int my_material, int op_material, float endgame_weight, bool is_black);
 void material_values(Board *b, int *white_material, int *black_material);
-float endgame_phase_weight(int materials_no_pawns);
 void positional_values(Board *b, int *white_eval, int *black_eval, 
-                           float white_endgame_weight, float black_endgame_weight);
+                       float white_endgame_weight, float black_endgame_weight);
+int mop_up_value(Board *b, int my_material, int op_material, float endgame_weight, bool is_black);
+float endgame_phase_weight(int materials_no_pawns);
 
 int evaluate(Board *b) {
     int white_eval = 0;
@@ -19,25 +17,34 @@ int evaluate(Board *b) {
 
     int white_material = 0;
     int black_material = 0;
-    
+
+    // Calculate material values
+    material_values(b, &white_material, &black_material);
+
     U64 white_pawn_bb = b->bitboards[piece_to_bb_idx(PAWN | WHITE)];
     U64 black_pawn_bb = b->bitboards[piece_to_bb_idx(PAWN | BLACK)];
     int white_mat_no_pawns = white_material - popcount(white_pawn_bb) * simple_base_values[PAWN];
     int black_mat_no_pawns = black_material - popcount(black_pawn_bb) * simple_base_values[PAWN];
+
     float white_endgame_weight = endgame_phase_weight(white_mat_no_pawns);
     float black_endgame_weight = endgame_phase_weight(black_mat_no_pawns);
-    
+
     white_eval += white_material;
     black_eval += black_material;
-    white_eval += mop_up_value(b, white_material, black_material, black_endgame_weight, true);
-    black_eval += mop_up_value(b, black_material, white_material, white_endgame_weight, false);
-    
-    material_values(b, &white_material, &black_material);
+
+    int mop_up_white = mop_up_value(b, white_material, black_material, black_endgame_weight, true);
+    int mop_up_black = mop_up_value(b, black_material, white_material, white_endgame_weight, false);
+
+    white_eval += mop_up_white;
+    black_eval += mop_up_black;
+
     positional_values(b, &white_eval, &black_eval, white_endgame_weight, black_endgame_weight);
 
     int eval = white_eval - black_eval;
-    return eval * (b->side_to_move ? -1 : 1); // Negate if black (1) to move
 
+    int result = eval * (b->side_to_move ? -1 : 1); // Negate if black (1) to move
+
+    return result;
 }
 
 void material_values(Board *b, int *white_material, int *black_material) {
@@ -58,7 +65,7 @@ void positional_values(Board *b, int *white_eval, int *black_eval,
                            float white_endgame_weight, float black_endgame_weight) {
     for (int sq_idx = 0; sq_idx < 64; sq_idx++) {
         Piece piece = b->squares[sq_idx];
-        uint8_t type = piece & TYPE_MASK;
+        Piece type = piece & TYPE_MASK;
         bool is_black = (piece & BLACK) != 0;
         if (type == NONE) continue;
         
@@ -69,8 +76,8 @@ void positional_values(Board *b, int *white_eval, int *black_eval,
             float eg_weight = is_black ? black_endgame_weight : white_endgame_weight;
             const int *mg_table = (type == PAWN) ? mg_pawn_pos_table : mg_king_table;
             const int *eg_table = (type == PAWN) ? eg_pawn_pos_table : eg_king_table;
-            int mg_val = mg_table[table_idx] * (1.0f - eg_weight);
-            int eg_val = eg_table[table_idx] * eg_weight;
+            int mg_val = static_cast<int>(mg_table[table_idx] * (1.0f - eg_weight));
+            int eg_val = static_cast<int>(eg_table[table_idx] * eg_weight);
             positional_value = mg_val + eg_val;
         } else {
             switch (type) {
@@ -100,7 +107,7 @@ int mop_up_value(Board *b, int my_material, int op_material, float endgame_weigh
         int op_king_square = bit_scan_forward(op_king_bb);
 
         mop_up_score += centre_manhattan_distance[op_king_square] * 10;
-        mop_up_score += (7 - king_distance[friendly_king_square][op_king_square]) * 8;
+        mop_up_score += (7 - king_distance[friendly_king_square][op_king_square]) * 14;
 
         return static_cast<int>(mop_up_score * endgame_weight);
     }

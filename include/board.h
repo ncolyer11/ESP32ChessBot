@@ -26,6 +26,7 @@ struct Board {
     uint8_t half_move_clock; // number of half moves since last pawn move or capture
     uint16_t full_moves; // starts at 1 and increments after black moves
 
+    std::vector<size_t> repetition_hashes; // For repetition detection
     std::vector<UndoState> undo_state_stack;
 };
 
@@ -35,4 +36,4 @@ void print_board_from_bbs(Board *b, bool show_params = false);
 void print_params(Board *b);
 void print_bitboards(Board *b);
 
-size_t hash_board_state(const Board* b);
+size_t hash_board_state(const Board* b, bool squares_only = false);

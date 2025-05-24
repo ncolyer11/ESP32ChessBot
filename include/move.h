@@ -17,6 +17,7 @@ struct MoveList {
 };
 
 extern std::vector<Move> move_history; // For undos and debugging
+extern std::vector<size_t> squares_hash_history;
 
 constexpr const int ENPASSANT_FLAG = 1;
 constexpr const int CASTLING_FLAG = 2;
@@ -57,8 +58,8 @@ static inline bool is_opponent(Board *b, Piece piece) {
 
 
 // Updating board with moves
-bool make_move_on_board(Board *b, Move move);
-void unmake_move_on_board(Board *b, Move move);
+bool make_move_on_board(Board *b, Move move, bool in_search = false);
+void unmake_move_on_board(Board *b, Move move, bool in_search = false);
 bool king_in_check(Board *b);
 bool king_in_check_after_move(Board *b, int from, int to);
 

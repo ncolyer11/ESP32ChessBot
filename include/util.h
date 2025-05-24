@@ -17,8 +17,8 @@ extern int orthogonal_distance[64][64];
 extern int king_distance[64][64];
 extern int centre_manhattan_distance[64];
 
-constexpr int BITBOARD_HISTORY_SIZE = 6;
 constexpr int DEPTH = 6; // depth for the bot to search
+constexpr int REP_HASHES = 15;
 
 constexpr const char *RESET    = "\033[0m";
 constexpr const char *DIM      = "\033[2m";
@@ -27,7 +27,7 @@ constexpr const char *WHITE_BG = "\033[47m";
 constexpr const char *GREEN_BG = "\033[42m";
 constexpr const char *BLUE_BG = "\033[104m";
 constexpr const char *WHITE_FG = "\033[97m";
-constexpr const char *BLACK_FG = "\033[34m"; // blue for black pieces
+constexpr const char *BLACK_FG = "\033[34m";
 
 void init_distance_tables();
 void get_player_types();

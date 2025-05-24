@@ -16,7 +16,9 @@
 /** TODO: 
  * - investigate pawn not being able to take bishop pinning it
  * I think this is caused by legal_move_list not being updated
- * check out queen sack fen in fen.h
+ * see why pawn not trying to promote, maybe continue move gen on a promotion?
+ * switch from b->repetition_hashes to just squares_hash_history as you're tracking all hashes
+ * anyways so might as well use it. also convert squares_hash_history to a deque for O(1) pops
  */
 
 void play(Board *b);
@@ -53,21 +55,20 @@ void init_all(Board *b) {
 void play(Board *b) {
     while (true) {
         print_board(b, true, MODE || false); // show params, show bitboards or testing
-
+        
         // Return if either king is missing
         if (!b->bitboards[0] || !b->bitboards[6]) return;
-
+        
         Move move = player_types[b->side_to_move] ? get_next_player_move(b) 
-                                                  : get_next_bot_move(b, DEPTH);
-
+        : get_next_bot_move(b, DEPTH);
+        
         // Exit on error or ctrl + d
         if (move == INVALID_MOVE) break;
-
+        
         // Exit on end of game
         if (move == NO_MOVES) break;
-
-        // Exit on invalid move, also switches players
-        move_history.push_back(move);
+        
+        // Exit on invalid move, also switches players 
         if (!make_move_on_board(b, move)) break;
     }
     ask_export_fen(b);
