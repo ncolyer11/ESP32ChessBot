@@ -33,7 +33,7 @@ constexpr int mg_pawn_pos_table[64] = {
 };
 
 constexpr int eg_pawn_pos_table[64] = {
-    0,   0,   0,   0,   0,   0,   0,   0,
+   150, 150, 150, 150, 150, 150, 150, 150,
    30,  60,  70,  80,  80,  70,  60,  30,
    25,  50,  60,  70,  70,  60,  50,  25,
    20,  40,  50,  60,  60,  50,  40,  20,
@@ -104,17 +104,6 @@ constexpr int eg_king_table[64] = {
     -30,-30,  0,  0,  0,  0,-30,-30,
     -50,-30,-30,-30,-30,-30,-30,-50
 };
-constexpr int manhattan_from_centre[8][8] = {
-    {7, 6, 5, 4, 3, 4, 5, 6},
-    {6, 5, 4, 3, 2, 3, 4, 5},
-    {5, 4, 3, 2, 1, 2, 3, 4},
-    {4, 3, 2, 1, 0, 1, 2, 3},
-    {5, 4, 3, 2, 1, 2, 3, 4},
-    {6, 5, 4, 3, 2, 3, 4, 5},
-    {7, 6, 5, 4, 3, 4, 5, 6},
-    {8, 7, 6, 5, 4, 5, 6, 7}
-};
-
 
 // flip for black’s perspective
 static constexpr int flip_square(int square_idx) { return square_idx ^ 0b111000; }

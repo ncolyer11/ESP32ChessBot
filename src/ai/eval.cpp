@@ -7,10 +7,10 @@
 
 int manhattan_distance(int square1, int square2);
 int num_rook_moves_to_reach_square(int from, int to);
-int mop_up_eval(Board *b, int my_material, int op_material, float endgame_weight, bool is_black);
-void get_materials(Board *b, int *my_material, int *op_material);
+int mop_up_value(Board *b, int my_material, int op_material, float endgame_weight, bool is_black);
+void material_values(Board *b, int *white_material, int *black_material);
 float endgame_phase_weight(int materials_no_pawns);
-void get_positional_values(Board *b, int *white_eval, int *black_eval, 
+void positional_values(Board *b, int *white_eval, int *black_eval, 
                            float white_endgame_weight, float black_endgame_weight);
 
 int evaluate(Board *b) {
@@ -19,28 +19,42 @@ int evaluate(Board *b) {
 
     int white_material = 0;
     int black_material = 0;
-    get_materials(b, &white_material, &black_material);
-
+    
     U64 white_pawn_bb = b->bitboards[piece_to_bb_idx(PAWN | WHITE)];
     U64 black_pawn_bb = b->bitboards[piece_to_bb_idx(PAWN | BLACK)];
     int white_mat_no_pawns = white_material - popcount(white_pawn_bb) * simple_base_values[PAWN];
     int black_mat_no_pawns = black_material - popcount(black_pawn_bb) * simple_base_values[PAWN];
     float white_endgame_weight = endgame_phase_weight(white_mat_no_pawns);
     float black_endgame_weight = endgame_phase_weight(black_mat_no_pawns);
-
+    
     white_eval += white_material;
     black_eval += black_material;
-    white_eval += mop_up_eval(b, white_material, black_material, black_endgame_weight, true);
-    black_eval += mop_up_eval(b, black_material, white_material, white_endgame_weight, false);
+    white_eval += mop_up_value(b, white_material, black_material, black_endgame_weight, true);
+    black_eval += mop_up_value(b, black_material, white_material, white_endgame_weight, false);
     
-    get_positional_values(b, &white_eval, &black_eval, white_endgame_weight, black_endgame_weight);
+    material_values(b, &white_material, &black_material);
+    positional_values(b, &white_eval, &black_eval, white_endgame_weight, black_endgame_weight);
 
     int eval = white_eval - black_eval;
     return eval * (b->side_to_move ? -1 : 1); // Negate if black (1) to move
 
 }
 
-void get_positional_values(Board *b, int *white_eval, int *black_eval, 
+void material_values(Board *b, int *white_material, int *black_material) {
+    *white_material = 0;
+    *black_material = 0;
+    for (Piece type = KING; type <= QUEEN; type++) { // recall piece ordering of : k, p, n, b, r, q
+        U64 white_bb = b->bitboards[piece_to_bb_idx(type | WHITE)];
+        U64 black_bb = b->bitboards[piece_to_bb_idx(type | BLACK)];
+        int white_count = popcount(white_bb);
+        int black_count = popcount(black_bb);
+
+        *white_material += white_count * simple_base_values[type];
+        *black_material += black_count * simple_base_values[type];
+    }
+}
+
+void positional_values(Board *b, int *white_eval, int *black_eval, 
                            float white_endgame_weight, float black_endgame_weight) {
     for (int sq_idx = 0; sq_idx < 64; sq_idx++) {
         Piece piece = b->squares[sq_idx];
@@ -75,7 +89,7 @@ void get_positional_values(Board *b, int *white_eval, int *black_eval,
     }
 }
 
-int mop_up_eval(Board *b, int my_material, int op_material, float endgame_weight, bool is_black) {
+int mop_up_value(Board *b, int my_material, int op_material, float endgame_weight, bool is_black) {
     int mop_up_score = 0;
     int friendly_colour = is_black ? BLACK : WHITE;
     int op_colour = is_black ? WHITE : BLACK;
@@ -92,24 +106,6 @@ int mop_up_eval(Board *b, int my_material, int op_material, float endgame_weight
     }
 
     return 0;
-}
-
-void get_materials(Board *b, int *my_material, int *op_material) {
-    *my_material = 0;
-    *op_material = 0;
-    uint8_t my_colour = b->side_to_move ? BLACK : WHITE;
-    uint8_t opp_colour = b->side_to_move ? WHITE : BLACK;
-    for (Piece type = KING; type <= QUEEN; type++) {
-        U64 my_bb = b->bitboards[piece_to_bb_idx(type | my_colour)];
-        U64 opp_bb = b->bitboards[piece_to_bb_idx(type | opp_colour)];
-        int my_count = popcount(my_bb);
-        int opp_count = popcount(opp_bb);
-        int my_val = my_count * simple_base_values[type];
-        int opp_val = opp_count * simple_base_values[type];
-
-        *my_material += my_val;
-        *op_material += opp_val;
-    }
 }
 
 float endgame_phase_weight(int materials_no_pawns) {
