@@ -92,7 +92,8 @@ Move find_best_move(Board *b, MoveList *move_list, int depth) {
  */
 int search(Board *b, int depth_remaining, int alpha, int beta, int ply_count) {
     if (depth_remaining == 0) {
-        return search_all_captures(b, alpha, beta);
+        return evaluate(b); // Base case: return evaluation score
+        // return search_all_captures(b, alpha, beta);
     }
 
     MoveList move_list;

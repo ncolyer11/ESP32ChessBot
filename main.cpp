@@ -16,9 +16,6 @@
 /** TODO: 
  * - investigate pawn not being able to take bishop pinning it
  * I think this is caused by legal_move_list not being updated
- * see why pawn not trying to promote, maybe continue move gen on a promotion?
- * switch from b->repeat_hashes to just squares_hash_history as you're tracking all hashes
- * anyways so might as well use it. also convert squares_hash_history to a deque for O(1) pops
  */
 
 void play(Board *b);

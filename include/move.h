@@ -17,7 +17,6 @@ struct MoveList {
 };
 
 extern std::vector<Move> move_history; // For undos and debugging
-extern std::vector<size_t> squares_hash_history;
 
 constexpr const int ENPASSANT_FLAG = 1;
 constexpr const int CASTLING_FLAG = 2;

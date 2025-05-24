@@ -23,7 +23,6 @@ void undo_castling_move(Board *b, int from, int to, Piece moved);
 int partition(Move *moves, int *scores, int low, int high);
 
 std::vector<Move> move_history;
-std::vector<size_t> squares_hash_history;
 
 
 /** 
@@ -54,27 +53,10 @@ bool make_move_on_board(Board *b, Move move, bool in_search) {
         std::cout << "[make_move_on_board] No piece at source square: " << from << std::endl;
         return false;
     }
-    // this what seb lague is doing but i think his repetition detection is bugged 
-    // if ((piece & TYPE_MASK) == PAWN || captured != NONE) {
-    //     // clear hash history if a pawn move or capture is made
-    //     // if (!squares_hash_history.empty()) squares_hash_history.clear();
-    // } else {
-    // }
     
     if (!in_search) {
         // save the move to history
         move_history.push_back(move);
-
-        // also save a hash of the current board state for repetition detection
-        size_t new_hash = hash_board_state(b, true); 
-        // append to full hash history and to cycling window
-        squares_hash_history.push_back(new_hash);
-    
-        // maintain sliding window of last REP_HASHES hashes
-        b->repeat_hashes.push_back(new_hash);
-        if (b->repeat_hashes.size() > REP_HASHES) {
-            b->repeat_hashes.erase(b->repeat_hashes.begin()); // remove oldest
-        }
     }
 
     // save the current state before making the move
@@ -141,20 +123,7 @@ void unmake_move_on_board(Board *b, Move move, bool in_search) {
     int flag = move_flag(move);
 
     if (!in_search) {
-        // Rollback the most recent hash out of the last REP_HASHES (and total history)
-        if (!squares_hash_history.empty() && !b->repeat_hashes.empty()) {
-            // remove the latest hash from each
-            squares_hash_history.pop_back();
-
-            // rebuild repeat_hashes from the end of the full history
-            b->repeat_hashes.clear();
-            size_t n = std::min<size_t>(REP_HASHES, squares_hash_history.size());
-            b->repeat_hashes.insert(
-                b->repeat_hashes.end(),
-                squares_hash_history.end() - n,
-                squares_hash_history.end()
-            );
-        }
+        move_history.pop_back();
     }
 
     // Pop the previous state from the stack

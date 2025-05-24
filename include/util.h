@@ -18,7 +18,6 @@ extern int king_distance[64][64];
 extern int centre_manhattan_distance[64];
 
 constexpr int DEPTH = 6; // depth for the bot to search
-constexpr int REP_HASHES = 15;
 
 constexpr const char *RESET    = "\033[0m";
 constexpr const char *DIM      = "\033[2m";

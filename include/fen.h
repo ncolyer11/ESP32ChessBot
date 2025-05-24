@@ -8,8 +8,8 @@ std::string export_position_to_fen(Board *b);
 std::string choose_fen();
 void ask_export_fen(Board *b);
 
-// static const std::string starting_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-static const std::string starting_fen = "8/3K4/4P3/8/8/6k1/8/7q w - - 0 1";
+static const std::string starting_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+// static const std::string starting_fen = "8/3K4/4P3/8/8/6k1/8/7q w - - 0 1";
 static const std::string check_fen = "4k3/8/2p5/2P5/8/2b5/1N3P2/K6N w - - 0 1";
 static const std::string stalemate_fen = "7k/2p5/5N2/2P5/8/5R2/1N3P2/K7 b - - 0 1";
 static const std::string queens_fen = "rnbqkbnr/qpqqpqpp/7p/8/8/P7/PQQPPQQQ/RNBQKBNR w KQkq - 0 1";
@@ -18,6 +18,7 @@ static const std::string castling_fen = "r3k1r1/1ppppp2/3r1p2/8/8/4PP2/1PP1PP2/R
 static const std::string checkmate_fen = "k7/pp5R/8/8/8/8/8/K7 w - - 0 1";
 static const std::string take_out_of_check_fen = "1k6/ppp5/8/2b5/8/4BN2/1P2QPPP/5RK1 w - - 0 1";
 static const std::string rook_only_cm_fen = "6k1/8/8/3P4/2K5/8/8/8 b - - 2 73";
+static const std::string pawn_queen_eg_fen = "8/3K4/4P3/8/8/6k1/8/7q w - - 0 1";
 
 // Basic FEN regex: 6 space-separated fields, first field = at least 8 chars (for pieces/ranks)
 static const std::regex fen_regex(
