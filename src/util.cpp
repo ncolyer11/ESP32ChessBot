@@ -13,6 +13,29 @@ bool player2_is_human = true;
 bool player_types[2] = {player1_is_human, player2_is_human};
 
 
+int orthogonal_distance[64][64];
+int king_distance[64][64];
+int centre_manhattan_distance[64];
+
+void init_distance_tables() {
+    for (int square_a = 0; square_a < 64; square_a++) {
+        int file_a = square_a % 8;
+        int rank_a = square_a / 8;
+        int file_dist_centre = std::max(3 - file_a, file_a - 4);
+        int rank_dist_centre = std::max(3 - rank_a, rank_a - 4);
+        centre_manhattan_distance[square_a] = file_dist_centre + rank_dist_centre;
+
+        for (int square_b = 0; square_b < 64; square_b++) {
+            int file_b = square_b % 8;
+            int rank_b = square_b / 8;
+            int file_dist = std::abs(file_a - file_b);
+            int rank_dist = std::abs(rank_a - rank_b);
+            orthogonal_distance[square_a][square_b] = file_dist + rank_dist;
+            king_distance[square_a][square_b] = std::max(file_dist, rank_dist);
+        }
+    }
+}
+
 void get_player_types() {
     std::string input;
     std::cout << "Is white human? (Y/n): ";

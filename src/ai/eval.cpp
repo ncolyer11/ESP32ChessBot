@@ -7,43 +7,34 @@
 
 int manhattan_distance(int square1, int square2);
 int num_rook_moves_to_reach_square(int from, int to);
-int mop_up_eval(Board *b, int my_material, int op_material, float endgame_weight, bool friendly_is_black);
+int mop_up_eval(Board *b, int my_material, int op_material, float endgame_weight, bool is_black);
 void get_materials(Board *b, int *my_material, int *op_material);
 float endgame_phase_weight(int materials_no_pawns);
-int manhattan_distance_from_centre(int sq_idx);
-int num_rook_moves_to_reach_square(int from, int to);
-void get_positional_values(Board *b, int side_score[2], bool my_is_black, 
-                           float my_endgame_weight, float op_endgame_weight);
+void get_positional_values(Board *b, int *white_eval, int *black_eval, 
+                           float white_endgame_weight, float black_endgame_weight);
 
 int evaluate(Board *b) {
-    bool my_is_black = b->side_to_move;
-
-    // Calculate material difference from the perspective of the side to move
-    int player_idx = my_is_black ? 1 : 0;
-    int op_idx = player_idx ^ 1;
     int white_eval = 0;
     int black_eval = 0;
 
-    int my_material, op_material;
-    get_materials(b, &my_material, &op_material);
-    side_score[player_idx] += my_material;
-    side_score[op_idx] += op_material;
+    int white_material = 0;
+    int black_material = 0;
+    get_materials(b, &white_material, &black_material);
 
-    uint8_t my_colour = b->side_to_move ? BLACK : WHITE;
-    uint8_t opp_colour = b->side_to_move ? WHITE : BLACK;
-    U64 friendly_pawn_bb = b->bitboards[piece_to_bb_idx(PAWN | my_colour)];
-    U64 op_pawn_bb = b->bitboards[piece_to_bb_idx(PAWN | opp_colour)];
-    int my_mat_no_pawns = my_material - popcount(friendly_pawn_bb) * simple_base_values[PAWN];
-    int op_mat_no_pawns = op_material - popcount(op_pawn_bb) * simple_base_values[PAWN];
+    U64 white_pawn_bb = b->bitboards[piece_to_bb_idx(PAWN | WHITE)];
+    U64 black_pawn_bb = b->bitboards[piece_to_bb_idx(PAWN | BLACK)];
+    int white_mat_no_pawns = white_material - popcount(white_pawn_bb) * simple_base_values[PAWN];
+    int black_mat_no_pawns = black_material - popcount(black_pawn_bb) * simple_base_values[PAWN];
+    float white_endgame_weight = endgame_phase_weight(white_mat_no_pawns);
+    float black_endgame_weight = endgame_phase_weight(black_mat_no_pawns);
 
-    float my_endgame_weight = endgame_phase_weight(my_mat_no_pawns);
-    float op_endgame_weight = endgame_phase_weight(op_mat_no_pawns);
-
-    int my_mop_up = mop_up_eval(b, my_material, op_material, op_endgame_weight, my_is_black);
-    int opp_mop_up = mop_up_eval(b, op_material, my_material, my_endgame_weight, my_is_black);
+    white_eval += white_material;
+    black_eval += black_material;
+    white_eval += mop_up_eval(b, white_material, black_material, black_endgame_weight, true);
+    black_eval += mop_up_eval(b, black_material, white_material, white_endgame_weight, false);
     
-    side_score[player_idx] += my_mop_up;
-    side_score[op_idx] += opp_mop_up;
+    get_positional_values(b, &white_eval, &black_eval, white_endgame_weight, black_endgame_weight);
+
     // std::cout << "My material: " << my_material
     //           << ", My material (no pawns): " << my_mat_no_pawns
     //           << ", My endgame weight: " << std::fixed << std::setprecision(3) << my_endgame_weight
@@ -55,25 +46,24 @@ int evaluate(Board *b) {
     //           << op_endgame_weight
     //           << ", op mop up: " << opp_mop_up << '\n';
 
-    get_positional_values(b, side_score, my_is_black, my_endgame_weight, op_endgame_weight);
+    int eval = white_eval - black_eval;
+    return eval * (b->side_to_move ? -1 : 1); // Negate if black (1) to move
 
-    int material_difference = side_score[player_idx] - side_score[op_idx];
-    return material_difference;
 }
 
-void get_positional_values(Board *b, int side_score[2], bool my_is_black, 
-                           float my_endgame_weight, float op_endgame_weight) {
+void get_positional_values(Board *b, int *white_eval, int *black_eval, 
+                           float white_endgame_weight, float black_endgame_weight) {
     for (int sq_idx = 0; sq_idx < 64; sq_idx++) {
         Piece piece = b->squares[sq_idx];
         uint8_t type = piece & TYPE_MASK;
-        if (type == NONE) continue;
         bool is_black = (piece & BLACK) != 0;
+        if (type == NONE) continue;
         
         // flip square index for white's perspective for PSTs as white is on the bottom
         int table_idx = is_black ? sq_idx : flip_square(sq_idx); 
         int positional_value = 0;
         if (type <= PAWN) { // king or pawn
-            float eg_weight = (is_black == my_is_black) ? my_endgame_weight : op_endgame_weight;
+            float eg_weight = is_black ? black_endgame_weight : white_endgame_weight;
             const int *mg_table = (type == PAWN) ? mg_pawn_pos_table : mg_king_table;
             const int *eg_table = (type == PAWN) ? eg_pawn_pos_table : eg_king_table;
             int mg_val = mg_table[table_idx] * (1.0f - eg_weight);
@@ -90,28 +80,30 @@ void get_positional_values(Board *b, int side_score[2], bool my_is_black,
             }
         }
         
-        side_score[is_black] += positional_value;
+        if (is_black) {
+            *black_eval += positional_value;
+        } else {
+            *white_eval += positional_value;
+        }
     }
 }
 
-int mop_up_eval(Board *b, int my_material, int op_material, float endgame_weight, bool friendly_is_black) {
+int mop_up_eval(Board *b, int my_material, int op_material, float endgame_weight, bool is_black) {
     int mop_up_score = 0;
-    int friendly_colour = friendly_is_black ? BLACK : WHITE;
-    int op_colour = friendly_is_black ? WHITE : BLACK;
-    int pawn_threshold = simple_base_values[2];
+    int friendly_colour = is_black ? BLACK : WHITE;
+    int op_colour = is_black ? WHITE : BLACK;
     // std::cout << "[mop_up_eval] my_material: " << my_material
     //           << ", op_material: " << op_material
     //           << ", pawn_threshold: " << pawn_threshold
     //           << ", endgame_weight: " << endgame_weight << std::endl;
     if (my_material >= op_material + pawn_threshold && endgame_weight > 0.0f) {
-
         U64 friendly_king_bb = b->bitboards[piece_to_bb_idx(KING | friendly_colour)];
         U64 op_king_bb = b->bitboards[piece_to_bb_idx(KING | op_colour)];
         int friendly_king_square = bit_scan_forward(friendly_king_bb);
         int op_king_square = bit_scan_forward(op_king_bb);
-        mop_up_score += manhattan_distance_from_centre(op_king_square) * 10;
-        int ortho_dist = num_rook_moves_to_reach_square(friendly_king_square, op_king_square);
-        mop_up_score += (14 - ortho_dist) * 4; // XXX tf
+
+        mop_up_score += centre_manhattan_distance[op_king_square] * 10;
+        mop_up_score += (14 - orthogonal_distance[friendly_king_square][op_king_square]) * 4; // XXX tf
         // std::cout << "[mop_up_eval] friendly_king_square: " << friendly_king_square
         //           << ", op_king_square: " << op_king_square
         //           << ", ortho_dist: " << ortho_dist
@@ -145,16 +137,4 @@ void get_materials(Board *b, int *my_material, int *op_material) {
 float endgame_phase_weight(int materials_no_pawns) {
     const float multiplier = 1.0f / endgame_mat_start;
     return 1.0f - std::min(1.0f, materials_no_pawns * multiplier);
-}
-
-int num_rook_moves_to_reach_square(int from, int to) {
-    int file_diff = std::abs((from % 8) - (to % 8));
-    int rank_diff = std::abs((from / 8) - (to / 8));
-    return file_diff + rank_diff;
-}
-
-int manhattan_distance_from_centre(int sq_idx) {
-    int rank = sq_idx / 8;
-    int file = sq_idx % 8;
-    return manhattan_from_centre[rank][file];
 }

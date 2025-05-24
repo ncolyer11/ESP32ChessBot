@@ -20,6 +20,8 @@
 constexpr int DEPTH = 4; // depth for the bot to search
 
 void play(Board *b);
+void init_all(Board *b);
+
 void test_fens();
 // void print_all_opening_moves();
 
@@ -38,13 +40,18 @@ int main() {
     
     // Boards setup
     Board b;
-    init_board(&b);
-    init_attack_bitboards();
+    init_all(&b);
 
     // Start game loop
     play(&b);
 
     return 0;
+}
+
+void init_all(Board *b) {
+    init_board(b);
+    init_attack_bitboards();
+    init_distance_tables();
 }
 
 void play(Board *b) {

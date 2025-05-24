@@ -13,6 +13,10 @@ extern bool player1_is_human;
 extern bool player2_is_human;
 extern bool player_types[2];
 
+extern int orthogonal_distance[64][64];
+extern int king_distance[64][64];
+extern int centre_manhattan_distance[64];
+
 constexpr int BITBOARD_HISTORY_SIZE = 6;
 
 constexpr const char *RESET    = "\033[0m";
@@ -24,6 +28,7 @@ constexpr const char *BLUE_BG = "\033[104m";
 constexpr const char *WHITE_FG = "\033[97m";
 constexpr const char *BLACK_FG = "\033[34m"; // blue for black pieces
 
+void init_distance_tables();
 void get_player_types();
 int piece_to_bb_idx(Piece piece);
 Piece symbol_to_piece(char symbol);

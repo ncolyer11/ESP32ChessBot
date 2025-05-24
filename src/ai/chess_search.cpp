@@ -83,14 +83,6 @@ int get_score(Board *b, Move move, int depth, int alpha, int beta, int id) {
     return score;
 }
 
-/**
- * @brief Checks if the king is in check after making a move.
- * 
- * @param b The current board state.
- * @param move The move to check.
- * @param id The ID for debugging purposes.
- * @return bool True if the king is in check, false otherwise.
- */
 bool get_check(Board *b, Move move, int id) { 
     size_t hash_before = hash_board_state(b);
     Board b_copy = *b;
