@@ -35,17 +35,6 @@ int evaluate(Board *b) {
     
     get_positional_values(b, &white_eval, &black_eval, white_endgame_weight, black_endgame_weight);
 
-    // std::cout << "My material: " << my_material
-    //           << ", My material (no pawns): " << my_mat_no_pawns
-    //           << ", My endgame weight: " << std::fixed << std::setprecision(3) << my_endgame_weight
-    //           << ", My mop up: " << my_mop_up << '\n';
-
-    // std::cout << "op material: " << op_material
-    //           << ", op material (no pawns): " << op_mat_no_pawns
-    //           << ", op endgame weight: " << std::fixed << std::setprecision(3) 
-    //           << op_endgame_weight
-    //           << ", op mop up: " << opp_mop_up << '\n';
-
     int eval = white_eval - black_eval;
     return eval * (b->side_to_move ? -1 : 1); // Negate if black (1) to move
 
@@ -69,8 +58,6 @@ void get_positional_values(Board *b, int *white_eval, int *black_eval,
             int mg_val = mg_table[table_idx] * (1.0f - eg_weight);
             int eg_val = eg_table[table_idx] * eg_weight;
             positional_value = mg_val + eg_val;
-            // std:: cout << (type == PAWN ? "Pawn" : "King") << " positional value = mg_val + eg_val = "
-            //           << mg_val << " + " << eg_val << " = " << positional_value << std::endl;
         } else {
             switch (type) {
                 case KNIGHT: positional_value = knight_pos_table[table_idx]; break;
@@ -92,10 +79,6 @@ int mop_up_eval(Board *b, int my_material, int op_material, float endgame_weight
     int mop_up_score = 0;
     int friendly_colour = is_black ? BLACK : WHITE;
     int op_colour = is_black ? WHITE : BLACK;
-    // std::cout << "[mop_up_eval] my_material: " << my_material
-    //           << ", op_material: " << op_material
-    //           << ", pawn_threshold: " << pawn_threshold
-    //           << ", endgame_weight: " << endgame_weight << std::endl;
     if (my_material >= op_material + pawn_threshold && endgame_weight > 0.0f) {
         U64 friendly_king_bb = b->bitboards[piece_to_bb_idx(KING | friendly_colour)];
         U64 op_king_bb = b->bitboards[piece_to_bb_idx(KING | op_colour)];
@@ -103,14 +86,11 @@ int mop_up_eval(Board *b, int my_material, int op_material, float endgame_weight
         int op_king_square = bit_scan_forward(op_king_bb);
 
         mop_up_score += centre_manhattan_distance[op_king_square] * 10;
-        mop_up_score += (14 - orthogonal_distance[friendly_king_square][op_king_square]) * 4; // XXX tf
-        // std::cout << "[mop_up_eval] friendly_king_square: " << friendly_king_square
-        //           << ", op_king_square: " << op_king_square
-        //           << ", ortho_dist: " << ortho_dist
-        //           << ", mop_up_score (before weight): " << mop_up_score << std::endl;
+        mop_up_score += (7 - king_distance[friendly_king_square][op_king_square]) * 4;
+
         return static_cast<int>(mop_up_score * endgame_weight);
     }
-    // std::cout << "[mop_up_eval] No mop up bonus applied.\n";
+
     return 0;
 }
 
@@ -126,12 +106,10 @@ void get_materials(Board *b, int *my_material, int *op_material) {
         int opp_count = popcount(opp_bb);
         int my_val = my_count * simple_base_values[type];
         int opp_val = opp_count * simple_base_values[type];
-        // std::cout << "\nType: " << (int)type << " My count: " << my_count << " My value: " << my_val << std::endl;
-        // std::cout << " Opp count: " << opp_count << " Opp value: " << opp_val << std::endl;
+
         *my_material += my_val;
         *op_material += opp_val;
     }
-    // std::cout << "Total my_material: " << *my_material << ", op_material: " << *op_material << std::endl;
 }
 
 float endgame_phase_weight(int materials_no_pawns) {

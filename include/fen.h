@@ -8,8 +8,8 @@ std::string export_position_to_fen(Board *b);
 std::string choose_fen();
 void ask_export_fen(Board *b);
 
-// static const std::string starting_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-static const std::string starting_fen = "6k1/8/8/3Q4/2K5/8/8/8 b - - 2 73";
+static const std::string starting_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+static const std::string queen_sack_fen = "8/3K4/4P3/8/8/6k1/8/7q w - - 0 1";
 static const std::string check_fen = "4k3/8/2p5/2P5/8/2b5/1N3P2/K6N w - - 0 1";
 static const std::string stalemate_fen = "7k/2p5/5N2/2P5/8/5R2/1N3P2/K7 b - - 0 1";
 static const std::string queens_fen = "rnbqkbnr/qpqqpqpp/7p/8/8/P7/PQQPPQQQ/RNBQKBNR w KQkq - 0 1";

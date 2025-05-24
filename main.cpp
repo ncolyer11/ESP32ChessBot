@@ -15,6 +15,7 @@
 /** TODO: 
  * - investigate pawn not being able to take bishop pinning it
  * I think this is caused by legal_move_list not being updated
+ * check out queen sack fen in fen.h
  */
 
 constexpr int DEPTH = 4; // depth for the bot to search
