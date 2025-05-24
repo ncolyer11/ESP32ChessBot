@@ -86,7 +86,7 @@ int mop_up_eval(Board *b, int my_material, int op_material, float endgame_weight
         int op_king_square = bit_scan_forward(op_king_bb);
 
         mop_up_score += centre_manhattan_distance[op_king_square] * 10;
-        mop_up_score += (7 - king_distance[friendly_king_square][op_king_square]) * 4;
+        mop_up_score += (7 - king_distance[friendly_king_square][op_king_square]) * 8;
 
         return static_cast<int>(mop_up_score * endgame_weight);
     }
