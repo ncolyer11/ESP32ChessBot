@@ -304,44 +304,43 @@ void generate_pawn_moves(Board *b, MoveList *move_list, bool only_captures) {
     int start_rank = b->side_to_move ? 6 : 1;
     int promotion_rank = b->side_to_move ? 0 : 7;
     for (int sq_idx = 0; sq_idx < 64; sq_idx++) {
-        if (b->squares[sq_idx] == (PAWN | friendly_colour(b))) {
-            // Forward move
-            int to = sq_idx + direction;
-            if (!only_captures && (to >= 0 && to < 64 && b->squares[to] == NONE)) {
-                if (to / 8 == promotion_rank) {
-                    // Add the 4 different possible promotion moves
-                    add_move(move_list, sq_idx, to, PROMOTION_QUEEN_FLAG); 
-                    add_move(move_list, sq_idx, to, PROMOTION_KNIGHT_FLAG);
-                    add_move(move_list, sq_idx, to, PROMOTION_ROOK_FLAG); 
-                    add_move(move_list, sq_idx, to, PROMOTION_BISHOP_FLAG);
-                } else {
-                    // Else it can't promote but still check if it can double push
-                    add_move(move_list, sq_idx, to, 0);
-                    // Double push from start
-                    if (sq_idx / 8 == start_rank) {
-                        int dbl = sq_idx + 2 * direction;
-                        if (b->squares[dbl] == NONE) {
-                            add_move(move_list, sq_idx, dbl, DOUBLE_PAWN_FLAG);
-                        }
+        if (b->squares[sq_idx] != (PAWN | friendly_colour(b))) continue;
+        // Forward move
+        int to = sq_idx + direction;
+        if (!only_captures && (to >= 0 && to < 64 && b->squares[to] == NONE)) {
+            if (to / 8 == promotion_rank) {
+                // Add the 4 different possible promotion moves
+                add_move(move_list, sq_idx, to, PROMOTION_QUEEN_FLAG); 
+                add_move(move_list, sq_idx, to, PROMOTION_KNIGHT_FLAG);
+                add_move(move_list, sq_idx, to, PROMOTION_ROOK_FLAG); 
+                add_move(move_list, sq_idx, to, PROMOTION_BISHOP_FLAG);
+            } else {
+                // Else it can't promote but still check if it can double push
+                add_move(move_list, sq_idx, to, 0);
+                // Double push from start
+                if (sq_idx / 8 == start_rank) {
+                    int dbl = sq_idx + 2 * direction;
+                    if (b->squares[dbl] == NONE) {
+                        add_move(move_list, sq_idx, dbl, DOUBLE_PAWN_FLAG);
                     }
                 }
             }
-            // Captures
-            for (int df = -1; df <= 1; df += 2) {
-                int file = sq_idx % 8;
-                int cap_file = file + df;
-                if (cap_file < 0 || cap_file > 7) continue;
-                int cap = sq_idx + direction + df;
-                if (cap < 0 || cap >= 64) continue;
-                if (b->squares[cap] != NONE && is_opponent(b, b->squares[cap])) {
-                    if (cap / 8 == promotion_rank) {
-                        add_move(move_list, sq_idx, cap, PROMOTION_QUEEN_FLAG); 
-                        add_move(move_list, sq_idx, cap, PROMOTION_KNIGHT_FLAG);
-                        add_move(move_list, sq_idx, cap, PROMOTION_ROOK_FLAG); 
-                        add_move(move_list, sq_idx, cap, PROMOTION_BISHOP_FLAG);
-                    } else {
-                        add_move(move_list, sq_idx, cap, 0);
-                    }
+        }
+        // Captures
+        for (int df = -1; df <= 1; df += 2) {
+            int file = sq_idx % 8;
+            int cap_file = file + df;
+            if (cap_file < 0 || cap_file > 7) continue;
+            int cap = sq_idx + direction + df;
+            if (cap < 0 || cap >= 64) continue;
+            if (b->squares[cap] != NONE && is_opponent(b, b->squares[cap])) {
+                if (cap / 8 == promotion_rank) {
+                    add_move(move_list, sq_idx, cap, PROMOTION_QUEEN_FLAG); 
+                    add_move(move_list, sq_idx, cap, PROMOTION_KNIGHT_FLAG);
+                    add_move(move_list, sq_idx, cap, PROMOTION_ROOK_FLAG); 
+                    add_move(move_list, sq_idx, cap, PROMOTION_BISHOP_FLAG);
+                } else {
+                    add_move(move_list, sq_idx, cap, 0);
                 }
             }
         }
