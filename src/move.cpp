@@ -49,10 +49,10 @@ bool make_move_on_board(Board *b, Move move, bool in_search) {
     Piece piece = b->squares[from];
     Piece captured = b->squares[to];
 
-    if (piece == NONE) {
-        std::cout << "[make_move_on_board] No piece at source square: " << from << std::endl;
-        return false;
-    }
+    // if (piece == NONE) {
+    //     std::cout << "[make_move_on_board] No piece at source square: " << from << std::endl;
+    //     return false;
+    // }
     
     if (!in_search) {
         // save the move to history

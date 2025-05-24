@@ -128,8 +128,9 @@ bool is_valid_move(Move *move, MoveList legal_move_list) {
  *   Call generate_moves() before move selection or perft, and after making any board changes.
  */
 void generate_moves(Board *b, MoveList *legal_move_list, bool only_captures) {
+    only_captures = false;
     // reset move count and both move and legal move lists
-    MoveList move_list = { {}, 0 }; // XXX ADD ONLY CAPTURES LOGIC!!
+    MoveList move_list = { {}, 0 };
     
     generate_king_moves(b, &move_list, only_captures);
     generate_castling_moves(b, &move_list, only_captures);
@@ -146,8 +147,7 @@ void filter_legal_moves(Board *b, MoveList move_list, MoveList *legal_move_list)
     for (int i = 0; i < move_list.count; i++) {
         std::string move_str = move_to_move_str(move_list.moves[i]);
     
-        bool in_check = get_check(b, move_list.moves[i], 1);
-        // Check if hash appears 3 times already in the last REP_HASHES hashes
+        bool in_check = get_check(b, move_list.moves[i], 101);
 
         if (!in_check) {
             legal_move_list->moves[legal_move_list->count++] = move_list.moves[i];

@@ -73,12 +73,8 @@ Move find_best_move(Board *b, MoveList *move_list, int depth) {
         }
     }
 
-    if (opening_move == NO_MOVES) {
-        return best_move;
-    }
-    Move chosen = (alpha > opening_move_score) ? best_move : opening_move;
-
-    return chosen;
+    if (opening_move == NO_MOVES) return best_move;
+    return (alpha > opening_move_score) ? best_move : opening_move;
 }
 
 /**
@@ -109,7 +105,19 @@ int search(Board *b, int depth_remaining, int alpha, int beta, int ply_count) {
         Move move = move_list.moves[i];
         std::string move_str = move_to_move_str(move);
         
-        int eval = get_score(b, move, depth_remaining, alpha, beta, ply_count + 1, 4);
+        size_t hash_before = hash_board_state(b);
+        Board b_copy = *b;
+        make_move_on_board(b, move, true);
+        Board b_move = *b;
+
+        int eval = -search(b, depth_remaining - 1, -beta, -alpha, ply_count + 1);
+        unmake_move_on_board(b, move, true);
+        size_t hash_after = hash_board_state(b);
+        if (hash_before != hash_after) {
+            DEBUG_hash_discrepancy(&b_copy, &b_move, b, move, 3);
+        }
+
+        // int eval = get_score(b, move, depth_remaining, alpha, beta, ply_count + 1, 4);
         
         if (eval >= beta) {
             return beta; // Move is better for the opponent, prune the search
@@ -117,7 +125,6 @@ int search(Board *b, int depth_remaining, int alpha, int beta, int ply_count) {
         alpha = std::max(alpha, eval);
     }
 
-    // std::cout << std::endl;
     return alpha;
 }
 
