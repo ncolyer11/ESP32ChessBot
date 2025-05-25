@@ -147,9 +147,9 @@ void filter_legal_moves(Board *b, MoveList move_list, MoveList *legal_move_list)
         std::string move_str = move_to_move_str(move_list.moves[i]);
     
         bool in_check = get_check(b, move_list.moves[i], 101);
-        bool is_repeat = is_repetition(board_pos_counts, hash_board_state(b, true));
+        // bool is_repeat = is_repetition(board_pos_counts, hash_board_state(b, true));
 
-        if (!in_check && !is_repeat) {
+        if (!in_check /*&& !is_repeat*/) {
             legal_move_list->moves[legal_move_list->count++] = move_list.moves[i];
         }
     }

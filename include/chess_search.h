@@ -8,3 +8,10 @@
 Move get_next_bot_move(Board *b, int depth);
 bool get_check(Board *b, Move move, int id);
 
+// infinities
+constexpr int pos_infinity = 10000000; 
+constexpr int neg_infinity = -pos_infinity;
+
+constexpr int MATE_BASE_SCORE = pos_infinity;
+constexpr int SEARCH_ALPHA_BETA_INF = MATE_BASE_SCORE + 1000;
+

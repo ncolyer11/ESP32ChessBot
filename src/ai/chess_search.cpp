@@ -9,26 +9,23 @@
 #include "movegen.h"
 #include "util.h"
 
-int search(Board *b, int depth, int alpha, int beta, int ply_count);
+int search(Board *b, int depth_remaining, int alpha, int beta, int ply_count,
+           HashHistory& game_history, HashCountMap& repetition_counts);
+int get_score(Board *b, Move move, int depth_remaining, int alpha, int beta, int parent_ply,
+              HashHistory& game_history, HashCountMap& repetition_counts, int id);
 int search_all_captures(Board *b, int alpha, int beta);
 void sort_moves(Board *b, MoveList* move_list);
-Move find_best_move(Board *b, MoveList *move_list, int depth);
+Move find_best_move(Board *b, MoveList *move_list, int depth,
+                    HashHistory& game_history, HashCountMap& repetition_counts);
 Move pick_random_opening_move(Board *b, MoveList *move_list);
 int get_score(Board *b, Move move, int depth_remaining, int alpha, int beta, int parent_ply, int id);
 void DEBUG_hash_discrepancy(Board *b_start, Board *b_middle, Board *b_final, Move move, int id);
 int opening_bonus(int full_move_number);
 
-// infinities
-constexpr int pos_infinity = 10000000; 
-constexpr int neg_infinity = -pos_infinity;
-
-constexpr int MATE_BASE_SCORE = pos_infinity;
-constexpr int SEARCH_ALPHA_BETA_INF = MATE_BASE_SCORE + 1000;
-
 
 Move get_next_bot_move(Board *b, int depth) {
     MoveList move_list = { {}, 0 };
-    Move chosen_move = find_best_move(b, &move_list, depth);
+    Move chosen_move = find_best_move(b, &move_list, depth, board_pos_history, board_pos_counts);
     // check_end_game_conditions might not be strictly necessary if find_best_move handles NO_MOVES
     if (!check_end_game_conditions(b, move_list.count)) return NO_MOVES;
     
@@ -38,7 +35,8 @@ Move get_next_bot_move(Board *b, int depth) {
     return chosen_move;
 }
 
-Move find_best_move(Board *b, MoveList *move_list, int depth) {
+Move find_best_move(Board *b, MoveList *move_list, int depth,
+                    HashHistory& game_history, HashCountMap& repetition_counts) {
     generate_moves(b, move_list);
     if (move_list->count == 0) return NO_MOVES; // Game over
     sort_moves(b, move_list);
@@ -51,8 +49,9 @@ Move find_best_move(Board *b, MoveList *move_list, int depth) {
     if (b->full_moves <= 3 + 1) { // as 1-indexed and starts from move 1
         opening_move = pick_random_opening_move(b, move_list);
         if (opening_move != NO_MOVES) {
-            opening_move_score = get_score(b, opening_move, depth, alpha, beta, 0, 1) 
-                                 + opening_bonus(b->full_moves);
+            opening_move_score = get_score(b, opening_move, depth, alpha, beta, 0, game_history,
+                                           repetition_counts, 1);
+            opening_move_score += opening_bonus(b->full_moves);
         }
     }
 
@@ -64,8 +63,7 @@ Move find_best_move(Board *b, MoveList *move_list, int depth) {
     for (int i = 0; i < move_list->count; ++i) {
         Move move = move_list->moves[i];
         std::string move_str = move_to_move_str(move);
-        int score = get_score(b, move, depth, alpha, beta, 0, 2);
-
+        int score = get_score(b, move, depth, alpha, beta, 0, game_history, repetition_counts, 2);
 
         if (score > alpha) {
             alpha = score;
@@ -84,9 +82,17 @@ Move find_best_move(Board *b, MoveList *move_list, int depth) {
  * @param alpha The alpha value for alpha-beta pruning.
  * @param beta The beta value for alpha-beta pruning.
  * @param ply_count The current ply from the root of the search.
+ * @param game_history The history of board states for repetition detection.
+ * @param repetition_counts The counts of each board state for repetition detection.
+ * 
  * @return int The evaluation score of the position.
  */
-int search(Board *b, int depth_remaining, int alpha, int beta, int ply_count) {
+int search(Board *b, int depth_remaining, int alpha, int beta, int ply_count,
+           HashHistory& game_history, HashCountMap& repetition_counts) {
+    Hash current_node_hash = hash_board_state(b);
+    if (is_repetition(repetition_counts, current_node_hash)) {
+        return 0; // Position already a repetition
+    }
     if (depth_remaining == 0) {
         // return evaluate(b); // Base case: return evaluation score
         return search_all_captures(b, alpha, beta);
@@ -99,13 +105,15 @@ int search(Board *b, int depth_remaining, int alpha, int beta, int ply_count) {
         return (king_in_check(b)) ? -(MATE_BASE_SCORE - ply_count) : 0; // Checkmate or stalemate
     } 
     
-    // Heuristically presort moves to have relatively better ones first
-    sort_moves(b, &move_list);
+    sort_moves(b, &move_list); // Heuristically presort moves
+    
     for (int i = 0; i < move_list.count; i++) {
         Move move = move_list.moves[i];
-        std::string move_str = move_to_move_str(move);
-        
-        int eval = get_score(b, move, depth_remaining, alpha, beta, ply_count + 1, 4);
+        // std::string move_str = move_to_move_str(move);
+
+        int eval = get_score(b, move, depth_remaining, alpha, beta, ply_count + 1, game_history,
+                             repetition_counts, 4);
+
         
         if (eval >= beta) {
             return beta; // Move is better for the opponent, prune the search
@@ -134,7 +142,6 @@ int search_all_captures(Board *b, int alpha, int beta) {
         eval = -search_all_captures(b, -beta, -alpha);
         unmake_move_on_board(b, move_list.moves[i], true);
 
-
         if (eval >= beta) {
             return beta; // Beta cut-off
         }
@@ -144,12 +151,24 @@ int search_all_captures(Board *b, int alpha, int beta) {
     return alpha;
 }
 
-int get_score(Board *b, Move move, int depth_remaining, int alpha, int beta, int parent_ply, int id) {
+int get_score(Board *b, Move move, int depth_remaining, int alpha, int beta, int parent_ply,
+              HashHistory& game_history, HashCountMap& repetition_counts, int id) {
     Hash hash_before = hash_board_state(b);
     Board b_copy = *b;
     make_move_on_board(b, move, true);
     Board b_move = *b;
-    int score = -search(b, depth_remaining - 1, -beta, -alpha, parent_ply + 1);
+    Hash current_hash = hash_board_state(b, true);
+    add_position_hash(game_history, repetition_counts, current_hash);
+
+    int score;
+    if (is_repetition(repetition_counts, hash_board_state(b, true))) {
+        std::cout << "Repetition detected for move: " << move_to_move_str(move) << std::endl;
+        score = 0; // Draw by repetition
+    } else {
+        score = -search(b, depth_remaining - 1, -beta, -alpha, parent_ply + 1,
+                        game_history, repetition_counts); // Pass history/counts down
+    }
+    remove_last_position_hash(game_history, repetition_counts);
     unmake_move_on_board(b, move, true);
     Hash hash_after = hash_board_state(b);
 
