@@ -17,6 +17,7 @@
  * - investigate pawn not being able to take bishop pinning it
  * I think this is caused by legal_move_list not being updated
  * ADD BACK IN THE MOVE REP STUFF NOW THAT YOUVE DEBUGGED HELL :))
+ * fix undo command :)
  */
 
 void play(Board *b);
