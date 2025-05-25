@@ -128,7 +128,6 @@ bool is_valid_move(Move *move, MoveList legal_move_list) {
  *   Call generate_moves() before move selection or perft, and after making any board changes.
  */
 void generate_moves(Board *b, MoveList *legal_move_list, bool only_captures) {
-    only_captures = false;
     // reset move count and both move and legal move lists
     MoveList move_list = { {}, 0 };
     
@@ -148,8 +147,9 @@ void filter_legal_moves(Board *b, MoveList move_list, MoveList *legal_move_list)
         std::string move_str = move_to_move_str(move_list.moves[i]);
     
         bool in_check = get_check(b, move_list.moves[i], 101);
+        bool is_repeat = is_repetition(board_pos_counts, hash_board_state(b, true));
 
-        if (!in_check) {
+        if (!in_check && !is_repeat) {
             legal_move_list->moves[legal_move_list->count++] = move_list.moves[i];
         }
     }
@@ -385,6 +385,12 @@ bool check_end_game_conditions(Board *b, int legal_moves_count) {
         return false;
     }
 
+    if (is_repetition(board_pos_counts, hash_board_state(b, true))) {
+        print_board(b, true);
+        std::cout << "Draw by threefold repetition!" << std::endl;
+        return false;
+    }
+
     if (is_stalemate(legal_moves_count, is_king_in_check)) {
         print_board(b, true);
         std::cout << "Stalemate!" << std::endl;
@@ -404,6 +410,12 @@ bool is_draw(uint8_t half_move_clock) {
 
 bool is_stalemate(int legal_moves_count, bool is_king_in_check) {
     return (legal_moves_count == 0) && !is_king_in_check;
+}
+
+bool is_repetition(const HashCountMap& board_position_counts, Hash hash) {
+    HashCountMapConstIt it = board_position_counts.find(hash);
+    bool has_3_plus_hashes = it != board_position_counts.end() && it->second >= 3;
+    return has_3_plus_hashes && (player1_is_human || player2_is_human); // screw this bot vs bot doesnt give one about 3-fold repetition
 }
 
 Move gen_and_validate_all_moves(Board *b, MoveList *legal_move_list) {

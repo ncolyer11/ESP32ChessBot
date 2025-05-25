@@ -19,14 +19,15 @@ extern int centre_manhattan_distance[64];
 
 constexpr int DEPTH = 6; // depth for the bot to search
 
-constexpr const char *RESET    = "\033[0m";
-constexpr const char *DIM      = "\033[2m";
-constexpr const char *BRIGHT   = "\033[1m";
-constexpr const char *WHITE_BG = "\033[47m";
-constexpr const char *GREEN_BG = "\033[42m";
-constexpr const char *BLUE_BG = "\033[104m";
-constexpr const char *WHITE_FG = "\033[97m";
-constexpr const char *BLACK_FG = "\033[34m";
+constexpr const char *RESET      = "\033[0m";
+constexpr const char *RESET_LINE = "\033[0K";
+constexpr const char *DIM        = "\033[2m";
+constexpr const char *BRIGHT     = "\033[1m";
+constexpr const char *WHITE_BG   = "\033[47m";
+constexpr const char *GREEN_BG   = "\033[42m";
+constexpr const char *BLUE_BG    = "\033[104m";
+constexpr const char *WHITE_FG   = "\033[97m";
+constexpr const char *BLACK_FG   = "\033[34m";
 
 void init_distance_tables();
 void get_player_types();

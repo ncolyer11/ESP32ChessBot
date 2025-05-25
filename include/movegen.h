@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <unordered_map>
 
 #include "board.h"
 #include "move.h"
@@ -18,6 +19,7 @@ bool check_end_game_conditions(Board *b, int legal_moves_count);
 bool is_checkmate(int legal_moves_count, bool is_king_in_check);
 bool is_draw(uint8_t half_move_clock);
 bool is_stalemate(int legal_moves_count, bool is_king_in_check);
+bool is_repetition(const std::unordered_map<Hash, int> &board_position_counts, Hash hash);
 
 // Main functions to generate and filter moves
 void generate_moves(Board *b, MoveList *legal_move_list, bool only_captures = false);

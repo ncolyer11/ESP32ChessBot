@@ -49,14 +49,10 @@ bool make_move_on_board(Board *b, Move move, bool in_search) {
     Piece piece = b->squares[from];
     Piece captured = b->squares[to];
 
-    // if (piece == NONE) {
-    //     std::cout << "[make_move_on_board] No piece at source square: " << from << std::endl;
-    //     return false;
-    // }
-    
     if (!in_search) {
-        // save the move to history
+        // save the move and squares only position hash
         move_history.push_back(move);
+        add_position_hash(board_pos_history, board_pos_counts, hash_board_state(b, true));
     }
 
     // save the current state before making the move
@@ -86,7 +82,7 @@ bool make_move_on_board(Board *b, Move move, bool in_search) {
     }
     update_castling_rights(b, from, to, piece, captured);
 
-    // Clocks
+    // update move trackers
     if ((piece & TYPE_MASK) == PAWN || captured != NONE) {
         b->half_move_clock = 0;
     } else {
@@ -124,6 +120,7 @@ void unmake_move_on_board(Board *b, Move move, bool in_search) {
 
     if (!in_search) {
         move_history.pop_back();
+        remove_last_position_hash(board_pos_history, board_pos_counts);
     }
 
     // Pop the previous state from the stack

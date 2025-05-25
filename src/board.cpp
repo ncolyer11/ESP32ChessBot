@@ -8,6 +8,9 @@
 #include "piece.h"
 #include "util.h"
 
+HashCountMap board_pos_counts;
+HashHistory board_pos_history;
+
 void init_board(Board *b) {
     std::string fen = starting_fen;
     if (MODE) fen = choose_fen();
@@ -34,7 +37,7 @@ void print_board(Board *b, bool show_params, bool show_bitboards) {
             const char *bg = is_light_square(file, rank) ? WHITE_BG : GREEN_BG;
             std::cout << bg << get_sprite(piece) << RESET;
         }
-        std::cout << std::endl;
+        std::cout << RESET_LINE << std::endl;
     }
 
     // File labels
@@ -139,11 +142,11 @@ void print_bitboards(Board *b) {
     }
 }
 
-size_t hash_last_undo_states(const Board* b, size_t seed) {
-    size_t num_to_hash = std::min<size_t>(5, b->undo_state_stack.size());
-    size_t start_idx = b->undo_state_stack.size() - num_to_hash;
+Hash hash_last_undo_states(const Board* b, Hash seed) {
+    Hash num_to_hash = std::min<Hash>(5, b->undo_state_stack.size());
+    Hash start_idx = b->undo_state_stack.size() - num_to_hash;
 
-    for (size_t i = start_idx; i < b->undo_state_stack.size(); ++i) {
+    for (Hash i = start_idx; i < b->undo_state_stack.size(); ++i) {
         const auto& state = b->undo_state_stack[i];
         seed ^= std::hash<bool>{}(state.side_to_move) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
         seed ^= std::hash<uint8_t>{}(state.castling_rights) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
@@ -155,8 +158,8 @@ size_t hash_last_undo_states(const Board* b, size_t seed) {
     return seed;
 }
 
-size_t hash_board_state(const Board* b, bool squares_only) {
-    size_t seed = 0;
+Hash hash_board_state(const Board* b, bool squares_only) {
+    Hash seed = 0;
 
     for (int i = 0; i < 64; ++i) {
         seed ^= std::hash<uint8_t>{}(static_cast<uint8_t>(b->squares[i])) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
@@ -179,4 +182,28 @@ size_t hash_board_state(const Board* b, bool squares_only) {
     seed = hash_last_undo_states(b, seed);
 
     return seed;
+}
+
+void add_position_hash(HashHistory& history, HashCountMap& counts, Hash hash) {
+    history.push_back(hash);
+    HashCountMapIt it = counts.find(hash);
+    if (it != counts.end()) {
+        it->second++;
+    } else {
+        counts[hash] = 1;
+    }
+}
+
+void remove_last_position_hash(HashHistory& history, HashCountMap& counts) {
+    if (!history.empty()) {
+        Hash last = history.back();
+        history.pop_back();
+
+        HashCountMapIt it = counts.find(last);
+        if (it != counts.end()) {
+            if (--(it->second) == 0) {
+                counts.erase(it);
+            }
+        }
+    }
 }

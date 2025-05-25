@@ -88,8 +88,8 @@ Move find_best_move(Board *b, MoveList *move_list, int depth) {
  */
 int search(Board *b, int depth_remaining, int alpha, int beta, int ply_count) {
     if (depth_remaining == 0) {
-        return evaluate(b); // Base case: return evaluation score
-        // return search_all_captures(b, alpha, beta);
+        // return evaluate(b); // Base case: return evaluation score
+        return search_all_captures(b, alpha, beta);
     }
 
     MoveList move_list;
@@ -105,19 +105,7 @@ int search(Board *b, int depth_remaining, int alpha, int beta, int ply_count) {
         Move move = move_list.moves[i];
         std::string move_str = move_to_move_str(move);
         
-        size_t hash_before = hash_board_state(b);
-        Board b_copy = *b;
-        make_move_on_board(b, move, true);
-        Board b_move = *b;
-
-        int eval = -search(b, depth_remaining - 1, -beta, -alpha, ply_count + 1);
-        unmake_move_on_board(b, move, true);
-        size_t hash_after = hash_board_state(b);
-        if (hash_before != hash_after) {
-            DEBUG_hash_discrepancy(&b_copy, &b_move, b, move, 3);
-        }
-
-        // int eval = get_score(b, move, depth_remaining, alpha, beta, ply_count + 1, 4);
+        int eval = get_score(b, move, depth_remaining, alpha, beta, ply_count + 1, 4);
         
         if (eval >= beta) {
             return beta; // Move is better for the opponent, prune the search
@@ -157,13 +145,13 @@ int search_all_captures(Board *b, int alpha, int beta) {
 }
 
 int get_score(Board *b, Move move, int depth_remaining, int alpha, int beta, int parent_ply, int id) {
-    size_t hash_before = hash_board_state(b);
+    Hash hash_before = hash_board_state(b);
     Board b_copy = *b;
     make_move_on_board(b, move, true);
     Board b_move = *b;
     int score = -search(b, depth_remaining - 1, -beta, -alpha, parent_ply + 1);
     unmake_move_on_board(b, move, true);
-    size_t hash_after = hash_board_state(b);
+    Hash hash_after = hash_board_state(b);
 
     if (hash_before != hash_after) DEBUG_hash_discrepancy(&b_copy, &b_move, b, move, id);
 
@@ -171,7 +159,7 @@ int get_score(Board *b, Move move, int depth_remaining, int alpha, int beta, int
 }
 
 bool get_check(Board *b, Move move, int id) { 
-    size_t hash_before = hash_board_state(b);
+    Hash hash_before = hash_board_state(b);
     Board b_copy = *b;
     make_move_on_board(b, move, true);
     Board b_move = *b;
@@ -179,7 +167,7 @@ bool get_check(Board *b, Move move, int id) {
     bool in_check = king_in_check(b);
     b->side_to_move ^= 1;
     unmake_move_on_board(b, move, true);
-    size_t hash_after = hash_board_state(b);
+    Hash hash_after = hash_board_state(b);
 
     if (hash_before != hash_after) DEBUG_hash_discrepancy(&b_copy, &b_move, b, move, id);
 
