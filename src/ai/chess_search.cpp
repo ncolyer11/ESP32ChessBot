@@ -167,13 +167,13 @@ std::string hash_to_base64(Hash hash) {
 
 int get_score(Board *b, Move move, int depth_remaining, int alpha, int beta, int parent_ply,
               HashHistory& game_history, HashCountMap& repetition_counts, int id) {
-    Hash hash_before = hash_board_state(b);
-    Board b_copy = *b;
+    // Hash hash_before = hash_board_state(b);
+    // Board b_copy = *b;
+    
     make_move_on_board(b, move, true);
-    Board b_move = *b;
+    // Board b_move = *b;
     Hash current_hash = hash_board_state(b, true);
     add_position_hash(game_history, repetition_counts, current_hash);
-
     int score;
     if (is_repetition(repetition_counts, current_hash)) {
         score = 0; // Draw by repetition
@@ -183,25 +183,25 @@ int get_score(Board *b, Move move, int depth_remaining, int alpha, int beta, int
     }
     remove_last_position_hash(game_history, repetition_counts);
     unmake_move_on_board(b, move, true);
-    Hash hash_after = hash_board_state(b);
+    // Hash hash_after = hash_board_state(b);
 
-    if (hash_before != hash_after) DEBUG_hash_discrepancy(&b_copy, &b_move, b, move, id);
+    // if (hash_before != hash_after) DEBUG_hash_discrepancy(&b_copy, &b_move, b, move, id);
 
     return score;
 }
 
 bool get_check(Board *b, Move move, int id) { 
-    Hash hash_before = hash_board_state(b);
-    Board b_copy = *b;
+    // Hash hash_before = hash_board_state(b);
+    // Board b_copy = *b;
     make_move_on_board(b, move, true);
-    Board b_move = *b;
+    // Board b_move = *b;
     b->side_to_move ^= 1;
     bool in_check = king_in_check(b);
     b->side_to_move ^= 1;
     unmake_move_on_board(b, move, true);
-    Hash hash_after = hash_board_state(b);
+    // Hash hash_after = hash_board_state(b);
 
-    if (hash_before != hash_after) DEBUG_hash_discrepancy(&b_copy, &b_move, b, move, id);
+    // if (hash_before != hash_after) DEBUG_hash_discrepancy(&b_copy, &b_move, b, move, id);
 
     return in_check;
 }
