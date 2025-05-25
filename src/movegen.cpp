@@ -63,7 +63,7 @@ Move process_command_moves(Board *b, std::string move_str) {
             std::cout << "No move to undo." << std::endl;
             return NO_MOVES;
         }
-        Move last_move = move_history.back(); move_history.pop_back();
+        Move last_move = move_history.back();
         unmake_move_on_board(b, last_move);
         std::cout << "Undoing last ply (half a move): " << move_to_move_str(last_move) << std::endl;
         print_board(b, true, MODE);
@@ -73,8 +73,8 @@ Move process_command_moves(Board *b, std::string move_str) {
             std::cout << "No moves to undo." << std::endl;
             return NO_MOVES;
         }
-        Move last_move = move_history.back(); move_history.pop_back();
-        Move second_last_move = move_history.back(); move_history.pop_back();
+        Move last_move = move_history.back();
+        Move second_last_move = *(move_history.rbegin() + 1);
         unmake_move_on_board(b, last_move);
         unmake_move_on_board(b, second_last_move);
         std::cout << "Undoing last 2 plys (1 move): " << move_to_move_str(last_move)

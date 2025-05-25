@@ -14,10 +14,8 @@
 // chcp 65001 to fix unicode in cmd
 
 /** TODO: 
- * - investigate pawn not being able to take bishop pinning it
- * I think this is caused by legal_move_list not being updated
- * ADD BACK IN THE MOVE REP STUFF NOW THAT YOUVE DEBUGGED HELL :))
- * fix undo command :)
+ * game arubptly ending again night g5 to e6 move 6:
+ * r1bqkb1r/pp2p1pp/2n1Nn2/2pp1P2/2B5/8/PPPP1PPP/RNBQK2R b KQkq - 1 7
  */
 
 void play(Board *b);
