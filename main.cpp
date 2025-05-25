@@ -52,6 +52,7 @@ void init_all(Board *b) {
 }
 
 void play(Board *b) {
+    int i = 0;
     while (true) {
         print_board(b, true, MODE || false); // show params, show bitboards or testing
         
@@ -69,6 +70,8 @@ void play(Board *b) {
         
         // Exit on invalid move, also switches players 
         if (!make_move_on_board(b, move)) break;
+        i++;
+        if (i > 10) break; // perft
     }
     ask_export_fen(b);
 }
