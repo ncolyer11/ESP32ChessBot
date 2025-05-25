@@ -415,7 +415,7 @@ bool is_stalemate(int legal_moves_count, bool is_king_in_check) {
 bool is_repetition(const HashCountMap& board_position_counts, Hash hash) {
     HashCountMapConstIt it = board_position_counts.find(hash);
     bool has_3_plus_hashes = it != board_position_counts.end() && it->second >= 3;
-    return has_3_plus_hashes && (player1_is_human || player2_is_human); // screw this bot vs bot doesnt give one about 3-fold repetition
+    return has_3_plus_hashes;
 }
 
 Move gen_and_validate_all_moves(Board *b, MoveList *legal_move_list) {

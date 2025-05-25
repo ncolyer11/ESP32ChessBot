@@ -151,6 +151,20 @@ int search_all_captures(Board *b, int alpha, int beta) {
     return alpha;
 }
 
+// convert a hash to a base64 string for debugging
+std::string hash_to_base64(Hash hash) {
+    static const char base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string result;
+    for (Hash i = 0; i < sizeof(Hash); i += 3) {
+        int value = (hash >> (8 * i)) & 0xFFFFFF; // Get 3 bytes
+        result += base64_chars[(value >> 18) & 0x3F];
+        result += base64_chars[(value >> 12) & 0x3F];
+        result += base64_chars[(value >> 6) & 0x3F];
+        result += base64_chars[value & 0x3F];
+    }
+    return result;
+}
+
 int get_score(Board *b, Move move, int depth_remaining, int alpha, int beta, int parent_ply,
               HashHistory& game_history, HashCountMap& repetition_counts, int id) {
     Hash hash_before = hash_board_state(b);
@@ -161,8 +175,7 @@ int get_score(Board *b, Move move, int depth_remaining, int alpha, int beta, int
     add_position_hash(game_history, repetition_counts, current_hash);
 
     int score;
-    if (is_repetition(repetition_counts, hash_board_state(b, true))) {
-        std::cout << "Repetition detected for move: " << move_to_move_str(move) << std::endl;
+    if (is_repetition(repetition_counts, current_hash)) {
         score = 0; // Draw by repetition
     } else {
         score = -search(b, depth_remaining - 1, -beta, -alpha, parent_ply + 1,
