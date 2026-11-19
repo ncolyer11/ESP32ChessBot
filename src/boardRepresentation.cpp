@@ -35,7 +35,7 @@ std::string square_name_from_coordinate(int file_idx, int rank_idx) {
 
 std::string square_name_from_idx(int square_idx) {
     return square_name_from_coordinate(square_idx_to_file_idx(square_idx),
-                                       square_idx_to_file_idx(square_idx));
+                                       square_idx_to_rank_idx(square_idx));
 }
 
 // converts say a1 to 0, h1 to 7, h2 to 8, h8 to 63

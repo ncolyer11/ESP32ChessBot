@@ -11,6 +11,44 @@
 HashCountMap board_pos_counts;
 HashHistory board_pos_history;
 
+Hash compute_zobrist(const Board *b) {
+    Hash h = 0;
+    for (int sq = 0; sq < 64; ++sq) {
+        Piece p = b->squares[sq];
+        if ((p & TYPE_MASK) != NONE) h ^= ZOBRIST.piece[piece_to_bb_idx(p)][sq];
+    }
+    if (b->side_to_move) h ^= ZOBRIST.side;
+    h ^= ZOBRIST.castling[b->castling_rights & 15];
+    if (b->enpassant_square < 64) h ^= ZOBRIST.ep_file[b->enpassant_square & 7];
+    return h;
+}
+
+// How many times the current position occurred earlier. Only same-side-to-move
+// positions (every 2nd ply) within the last half_move_clock plies can match.
+int repetition_count(const Board *b) {
+    int n = (int)b->hash_history.size();
+    int count = 0;
+    for (int k = 2; k <= (int)b->half_move_clock && k <= n; k += 2) {
+        if (b->hash_history[n - k] == b->zobrist) count++;
+    }
+    return count;
+}
+
+bool is_insufficient_material(const Board *b) {
+    // bitboard order: K P N B R Q (white), then black
+    if (b->bitboards[1] | b->bitboards[4] | b->bitboards[5] |
+        b->bitboards[7] | b->bitboards[10] | b->bitboards[11]) return false;
+    U64 wn = b->bitboards[2], wb = b->bitboards[3], bn = b->bitboards[8], bb = b->bitboards[9];
+    int minors = popcount(wn | wb | bn | bb);
+    if (minors <= 1) return true;
+    // K+B v K+B with bishops on the same colour squares
+    if (wn == 0 && bn == 0 && popcount(wb) == 1 && popcount(bb) == 1) {
+        constexpr U64 LIGHT = 0x55AA55AA55AA55AAULL;
+        return ((wb & LIGHT) != 0) == ((bb & LIGHT) != 0);
+    }
+    return false;
+}
+
 void init_board(Board *b) {
     std::string fen = starting_fen;
     if (MODE) fen = choose_fen();

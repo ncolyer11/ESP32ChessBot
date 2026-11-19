@@ -50,10 +50,10 @@ bool make_move_on_board(Board *b, Move move, bool in_search) {
     Piece captured = b->squares[to];
 
     if (!in_search) {
-        // save the move and squares only position hash
         move_history.push_back(move);
         add_position_hash(board_pos_history, board_pos_counts, hash_board_state(b, true));
     }
+    b->hash_history.push_back(b->zobrist);
 
     // save the current state before making the move
     UndoState state_to_save;
@@ -63,16 +63,36 @@ bool make_move_on_board(Board *b, Move move, bool in_search) {
     state_to_save.half_move_clock = b->half_move_clock;
     state_to_save.full_moves = b->full_moves;
     state_to_save.captured_piece = captured;
+    state_to_save.zobrist = b->zobrist;
     b->undo_state_stack.push_back(state_to_save);
+
+    Hash h = b->zobrist;
+    uint8_t old_castling = b->castling_rights;
+    if (b->enpassant_square < 64) h ^= ZOBRIST.ep_file[b->enpassant_square & 7];
+    int pidx = piece_to_bb_idx(piece);
 
     if (flag >= PROMOTION_QUEEN_FLAG && flag <= PROMOTION_BISHOP_FLAG) {
         apply_promotion_move(b, from, to, piece, captured, flag);
+        b->enpassant_square = 64;
+        h ^= ZOBRIST.piece[pidx][from] ^ ZOBRIST.piece[piece_to_bb_idx(b->squares[to])][to];
+        if (captured != NONE) h ^= ZOBRIST.piece[piece_to_bb_idx(captured)][to];
     } else if (flag == ENPASSANT_FLAG) {
         apply_en_passant_move(b, from, to, piece);
+        int cap_sq = to + (b->side_to_move ? 8 : -8);
+        h ^= ZOBRIST.piece[pidx][from] ^ ZOBRIST.piece[pidx][to]
+           ^ ZOBRIST.piece[piece_to_bb_idx(PAWN | opponent_colour(b))][cap_sq];
     } else if (flag == CASTLING_FLAG) {
         apply_castling_move(b, from, to, piece);
+        b->enpassant_square = 64;
+        int rook_from = (to == 6) ? 7 : (to == 2) ? 0 : (to == 62) ? 63 : 56;
+        int rook_to = (to == 6) ? 5 : (to == 2) ? 3 : (to == 62) ? 61 : 59;
+        int ridx = piece_to_bb_idx(ROOK | (piece & COLOUR_MASK));
+        h ^= ZOBRIST.piece[pidx][from] ^ ZOBRIST.piece[pidx][to]
+           ^ ZOBRIST.piece[ridx][rook_from] ^ ZOBRIST.piece[ridx][rook_to];
     } else {
         apply_normal_move(b, from, to, piece, captured);
+        h ^= ZOBRIST.piece[pidx][from] ^ ZOBRIST.piece[pidx][to];
+        if (captured != NONE) h ^= ZOBRIST.piece[piece_to_bb_idx(captured)][to];
         // Double pawn move, i.e. pawn has moved 2 ranks
         if (flag == DOUBLE_PAWN_FLAG) {
             b->enpassant_square = (from + to) / 2; // one square behind it
@@ -81,6 +101,10 @@ bool make_move_on_board(Board *b, Move move, bool in_search) {
         }
     }
     update_castling_rights(b, from, to, piece, captured);
+    h ^= ZOBRIST.castling[old_castling & 15] ^ ZOBRIST.castling[b->castling_rights & 15];
+    if (b->enpassant_square < 64) h ^= ZOBRIST.ep_file[b->enpassant_square & 7];
+    h ^= ZOBRIST.side;
+    b->zobrist = h;
 
     // update move trackers
     if ((piece & TYPE_MASK) == PAWN || captured != NONE) {
@@ -88,9 +112,12 @@ bool make_move_on_board(Board *b, Move move, bool in_search) {
     } else {
         b->half_move_clock++;
     }
-    if (!(b->side_to_move)) b->full_moves++;
+    if (b->side_to_move) b->full_moves++; // full move counter ticks after black moves
     b->side_to_move ^= 1;
 
+#ifdef CHESS_DEBUG
+    if (b->zobrist != compute_zobrist(b)) std::cerr << "[zobrist] mismatch after " << move_to_move_str(move) << std::endl;
+#endif
     return true;
 }
 
@@ -123,6 +150,8 @@ void unmake_move_on_board(Board *b, Move move, bool in_search) {
         remove_last_position_hash(board_pos_history, board_pos_counts);
     }
 
+    if (!b->hash_history.empty()) b->hash_history.pop_back();
+
     // Pop the previous state from the stack
     UndoState restored_state = b->undo_state_stack.back(); b->undo_state_stack.pop_back();
 
@@ -135,6 +164,7 @@ void unmake_move_on_board(Board *b, Move move, bool in_search) {
     b->half_move_clock = restored_state.half_move_clock;
     b->full_moves = restored_state.full_moves;
     b->side_to_move = restored_state.side_to_move;
+    b->zobrist = restored_state.zobrist;
 
     // Reverse piece‐placement
     if (flag >= PROMOTION_QUEEN_FLAG && flag <= PROMOTION_BISHOP_FLAG) {
