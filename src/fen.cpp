@@ -109,6 +109,11 @@ bool load_position_from_fen(Board *b, std::string fen) {
     b->half_move_clock = 0;
     b->full_moves = 1;
     move_history.clear();
+    // reserve up front so long games don't fragment the heap on small targets
+    constexpr size_t HISTORY_RESERVE = 512;
+    b->undo_state_stack.reserve(HISTORY_RESERVE);
+    b->hash_history.reserve(HISTORY_RESERVE);
+    move_history.reserve(HISTORY_RESERVE);
 
     std::cout << "Loading position from FEN: " << fen << std::endl;
     int file = 0, rank = 7;

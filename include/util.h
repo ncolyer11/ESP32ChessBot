@@ -9,6 +9,7 @@
 typedef uint64_t U64;
 
 extern bool MODE; // false = play, true = testing
+extern bool ASCII_BOARD; // plain letters instead of unicode pieces/colours
 extern bool player1_is_human;
 extern bool player2_is_human;
 extern bool player_types[2];
