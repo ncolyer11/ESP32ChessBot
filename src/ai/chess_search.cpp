@@ -96,7 +96,7 @@ static inline bool is_quiet(Board *b, Move m) {
 }
 
 static inline bool is_draw_node(Board *b) {
-    return repetition_count(b) >= 1 || b->half_move_clock >= 100 || is_insufficient_material(b);
+    return repetition_count(b) >= 1 || is_insufficient_material(b);
 }
 
 // ---------------------------------------------------------------------------
@@ -217,7 +217,17 @@ static Move find_best_move(Board *b, MoveList *move_list, int max_depth, int tim
  * @return Score from the side to move's perspective.
  */
 static int search(Board *b, int depth, int alpha, int beta, int ply) {
-    if (is_draw_node(b)) return 0; // repetition, 50 moves, or dead material
+    if (is_draw_node(b)) return 0; // repetition or dead material
+
+    // 50 move rule, but checkmate on the 100th half move still counts as mate
+    if (b->half_move_clock >= 100) {
+        if (king_in_check(b)) {
+            MoveList replies;
+            generate_moves(b, &replies);
+            if (replies.count == 0) return -(MATE_BASE_SCORE - ply);
+        }
+        return 0;
+    }
 
     if (depth <= 0 || ply >= MAX_PLY - 1) return search_all_captures(b, alpha, beta, 0);
 
