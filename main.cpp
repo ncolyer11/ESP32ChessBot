@@ -8,10 +8,39 @@
 // https://lichess.org/editor
 // chcp 65001 to fix unicode in cmd
 
+#ifdef _WIN32
+#include <windows.h>
+
+// utf-8 output + ansi colour escapes, both off by default in the classic console
+static void setup_console() {
+    SetConsoleOutputCP(CP_UTF8);
+    HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD mode = 0;
+    if (h != INVALID_HANDLE_VALUE && GetConsoleMode(h, &mode))
+        SetConsoleMode(h, mode | 0x0004 /* ENABLE_VIRTUAL_TERMINAL_PROCESSING */);
+
+    // big MS Gothic so the chess glyphs show, this window only (no effect in Windows Terminal)
+    CONSOLE_FONT_INFOEX font = {};
+    font.cbSize = sizeof(font);
+    font.dwFontSize.Y = 34;
+    font.FontFamily = FF_DONTCARE;
+    font.FontWeight = FW_NORMAL;
+    wcscpy(font.FaceName, L"MS Gothic");
+    SetCurrentConsoleFontEx(h, FALSE, &font);
+
+    // start maximised (classic console only)
+    HWND win = GetConsoleWindow();
+    if (win) ShowWindow(win, SW_MAXIMIZE);
+}
+#else
+static void setup_console() {}
+#endif
+
 void print_usage();
 bool parse_mode(const char *s, Mode *mode);
 
 int main(int argc, char **argv) {
+    setup_console();
     AppConfig cfg;
 
     for (int i = 1; i < argc; i++) {
