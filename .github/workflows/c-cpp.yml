@@ -22,6 +22,23 @@ jobs:
       - name: Perft
         run: make perft
 
+  esp32s3:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ hashFiles('platformio.ini') }}
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build for ESP32-S3
+        run: pio run -e esp32s3
+
   windows:
     runs-on: windows-latest
 
