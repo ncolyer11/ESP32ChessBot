@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 #include <iomanip>
 
@@ -8,7 +9,8 @@
 void material_values(Board *b, int *white_material, int *black_material);
 void positional_values(Board *b, int *white_eval, int *black_eval, 
                        float white_endgame_weight, float black_endgame_weight);
-int mop_up_value(Board *b, int my_material, int op_material, float endgame_weight, bool is_black);
+int mop_up_value(Board *b, int my_non_pawn_material, int op_non_pawn_material, float op_endgame_weight, bool is_black);
+int passed_pawn_bonus(Board *b, float endgame_weight, bool is_black);
 float endgame_phase_weight(int materials_no_pawns);
 
 int evaluate(Board *b) {
@@ -32,8 +34,14 @@ int evaluate(Board *b) {
     white_eval += white_material;
     black_eval += black_material;
 
-    int mop_up_white = mop_up_value(b, white_material, black_material, black_endgame_weight, true);
-    int mop_up_black = mop_up_value(b, black_material, white_material, white_endgame_weight, false);
+    // each side's mop-up depends on how bare the OPPONENT is
+    int mop_up_white = mop_up_value(b, white_mat_no_pawns, black_mat_no_pawns, black_endgame_weight, false);
+    int mop_up_black = mop_up_value(b, black_mat_no_pawns, white_mat_no_pawns, white_endgame_weight, true);
+
+    // passed pawns matter more the closer we are to an endgame
+    float avg_endgame_weight = (white_endgame_weight + black_endgame_weight) * 0.5f;
+    white_eval += passed_pawn_bonus(b, avg_endgame_weight, false);
+    black_eval += passed_pawn_bonus(b, avg_endgame_weight, true);
 
     white_eval += mop_up_white;
     black_eval += mop_up_black;
@@ -96,23 +104,62 @@ void positional_values(Board *b, int *white_eval, int *black_eval,
     }
 }
 
-int mop_up_value(Board *b, int my_material, int op_material, float endgame_weight, bool is_black) {
-    int mop_up_score = 0;
+int mop_up_value(Board *b, int my_non_pawn_material, int op_non_pawn_material, float op_endgame_weight, bool is_black) {
     int friendly_colour = is_black ? BLACK : WHITE;
     int op_colour = is_black ? WHITE : BLACK;
-    if (my_material >= op_material + pawn_threshold && endgame_weight > 0.0f) {
+    // only when we clearly have more pieces and the opponent is nearly bare
+    if (my_non_pawn_material >= op_non_pawn_material + pawn_threshold && op_endgame_weight > 0.0f) {
         U64 friendly_king_bb = b->bitboards[piece_to_bb_idx(KING | friendly_colour)];
         U64 op_king_bb = b->bitboards[piece_to_bb_idx(KING | op_colour)];
+        if (!friendly_king_bb || !op_king_bb) return 0;
         int friendly_king_square = bit_scan_forward(friendly_king_bb);
         int op_king_square = bit_scan_forward(op_king_bb);
 
+        int mop_up_score = 0;
         mop_up_score += centre_manhattan_distance[op_king_square] * 10;
         mop_up_score += (7 - king_distance[friendly_king_square][op_king_square]) * 14;
 
-        return static_cast<int>(mop_up_score * endgame_weight);
+        return static_cast<int>(mop_up_score * op_endgame_weight);
     }
 
     return 0;
+}
+
+// squares in front of a pawn (same + adjacent files) that must be free of enemy pawns for it to be passed
+static U64 passed_masks[2][64];
+static bool passed_masks_ready = false;
+
+static void init_passed_masks() {
+    for (int colour = 0; colour < 2; colour++) {
+        for (int sq = 0; sq < 64; sq++) {
+            int file = sq & 7, rank = sq >> 3;
+            U64 mask = 0;
+            for (int r = 0; r < 8; r++) {
+                bool in_front = (colour == 0) ? (r > rank) : (r < rank); // a1 is 0, so white moves to higher ranks
+                if (!in_front) continue;
+                for (int f = std::max(0, file - 1); f <= std::min(7, file + 1); f++) mask |= 1ULL << (r * 8 + f);
+            }
+            passed_masks[colour][sq] = mask;
+        }
+    }
+    passed_masks_ready = true;
+}
+
+int passed_pawn_bonus(Board *b, float endgame_weight, bool is_black) {
+    static constexpr int rank_bonus[8] = { 0, 5, 10, 20, 35, 60, 100, 0 };
+    if (!passed_masks_ready) init_passed_masks();
+    int colour = is_black ? 1 : 0;
+    U64 my_pawns = b->bitboards[piece_to_bb_idx(PAWN | (is_black ? BLACK : WHITE))];
+    U64 enemy_pawns = b->bitboards[piece_to_bb_idx(PAWN | (is_black ? WHITE : BLACK))];
+    int total = 0;
+    while (my_pawns) {
+        int sq = bit_scan_forward(my_pawns);
+        my_pawns &= my_pawns - 1;
+        if (passed_masks[colour][sq] & enemy_pawns) continue;
+        int rank_from_own_side = is_black ? 7 - (sq >> 3) : (sq >> 3);
+        total += rank_bonus[rank_from_own_side];
+    }
+    return static_cast<int>(total * (0.4f + 0.6f * endgame_weight));
 }
 
 float endgame_phase_weight(int materials_no_pawns) {

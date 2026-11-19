@@ -8,12 +8,48 @@
 #include "piece.h"
 #include "util.h"
 
-HashCountMap board_pos_counts;
-HashHistory board_pos_history;
+Hash compute_zobrist(const Board *b) {
+    Hash h = 0;
+    for (int sq = 0; sq < 64; ++sq) {
+        Piece p = b->squares[sq];
+        if ((p & TYPE_MASK) != NONE) h ^= ZOBRIST.piece[piece_to_bb_idx(p)][sq];
+    }
+    if (b->side_to_move) h ^= ZOBRIST.side;
+    h ^= ZOBRIST.castling[b->castling_rights & 15];
+    if (b->enpassant_square < 64) h ^= ZOBRIST.ep_file[b->enpassant_square & 7];
+    return h;
+}
 
-void init_board(Board *b) {
-    std::string fen = starting_fen;
-    if (MODE) fen = choose_fen();
+// How many times the current position occurred earlier. Only same-side-to-move
+// positions (every 2nd ply) within the last half_move_clock plies can match.
+int repetition_count(const Board *b) {
+    int n = (int)b->hash_history.size();
+    int count = 0;
+    for (int k = 2; k <= (int)b->half_move_clock && k <= n; k += 2) {
+        if (b->hash_history[n - k] == b->zobrist) count++;
+    }
+    return count;
+}
+
+bool is_insufficient_material(const Board *b) {
+    // bitboard order: K P N B R Q (white), then black
+    if (b->bitboards[1] | b->bitboards[4] | b->bitboards[5] |
+        b->bitboards[7] | b->bitboards[10] | b->bitboards[11]) return false;
+    U64 wn = b->bitboards[2], wb = b->bitboards[3], bn = b->bitboards[8], bb = b->bitboards[9];
+    int minors = popcount(wn | wb | bn | bb);
+    if (minors <= 1) return true;
+    // K+B v K+B with bishops on the same colour squares
+    if (wn == 0 && bn == 0 && popcount(wb) == 1 && popcount(bb) == 1) {
+        constexpr U64 LIGHT = 0x55AA55AA55AA55AAULL;
+        return ((wb & LIGHT) != 0) == ((bb & LIGHT) != 0);
+    }
+    return false;
+}
+
+// fen empty: starting position (or the stdin prompt in test mode)
+void init_board(Board *b, const std::string &fen_arg) {
+    std::string fen = fen_arg;
+    if (fen.empty()) fen = MODE ? choose_fen() : starting_fen;
     load_position_from_fen(b, fen);
     std::cout << "Board initialised.\n" << std::endl;
 }
@@ -37,7 +73,8 @@ void print_board(Board *b, bool show_params, bool show_bitboards) {
             const char *bg = is_light_square(file, rank) ? WHITE_BG : GREEN_BG;
             std::cout << bg << get_sprite(piece) << RESET;
         }
-        std::cout << RESET_LINE << std::endl;
+        if (!MODE) std::cout << RESET_LINE;
+        std::cout << std::endl;
     }
 
     // File labels
@@ -77,7 +114,7 @@ void print_board_from_bbs(Board *b, bool show_params) {
                     if (found == 1) {
                         symbol = get_sprite_from_idx(bb_idx);
                     } else {
-                        static char buf[3];
+                        static char buf[16];
                         snprintf(buf, sizeof(buf), "%02d", found);
                         symbol = buf;
                     }
@@ -139,71 +176,5 @@ void print_bitboards(Board *b) {
     std::cout << "Bitboards:" << std::endl;
     for (int i = 0; i < 12; ++i) {
         std::cout << PIECE_NAMES[i] << ": " << std::bitset<64>(b->bitboards[i]) << std::endl;
-    }
-}
-
-Hash hash_last_undo_states(const Board* b, Hash seed) {
-    Hash num_to_hash = std::min<Hash>(5, b->undo_state_stack.size());
-    Hash start_idx = b->undo_state_stack.size() - num_to_hash;
-
-    for (Hash i = start_idx; i < b->undo_state_stack.size(); ++i) {
-        const auto& state = b->undo_state_stack[i];
-        seed ^= std::hash<bool>{}(state.side_to_move) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        seed ^= std::hash<uint8_t>{}(state.castling_rights) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        seed ^= std::hash<uint8_t>{}(state.enpassant_square) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        seed ^= std::hash<uint8_t>{}(state.half_move_clock) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        seed ^= std::hash<uint16_t>{}(state.full_moves) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    }
-
-    return seed;
-}
-
-Hash hash_board_state(const Board* b, bool squares_only) {
-    Hash seed = 0;
-
-    for (int i = 0; i < 64; ++i) {
-        seed ^= std::hash<uint8_t>{}(static_cast<uint8_t>(b->squares[i])) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    }
-    if (squares_only) {
-        return seed; // Return early if only squares are to be hashed
-    }
-
-    for (int i = 0; i < 12; ++i) {
-        seed ^= std::hash<U64>{}(b->bitboards[i]) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    }
-
-    seed ^= std::hash<uint8_t>{}(b->side_to_move) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    seed ^= std::hash<uint8_t>{}(b->castling_rights) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    seed ^= std::hash<uint8_t>{}(b->enpassant_square) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    seed ^= std::hash<uint8_t>{}(b->half_move_clock) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    seed ^= std::hash<uint16_t>{}(b->full_moves) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    
-    // Hash only the last 5 undo states (or fewer if stack is smaller)
-    seed = hash_last_undo_states(b, seed);
-
-    return seed;
-}
-
-void add_position_hash(HashHistory& history, HashCountMap& counts, Hash hash) {
-    history.push_back(hash);
-    HashCountMapIt it = counts.find(hash);
-    if (it != counts.end()) {
-        it->second++;
-    } else {
-        counts[hash] = 1;
-    }
-}
-
-void remove_last_position_hash(HashHistory& history, HashCountMap& counts) {
-    if (!history.empty()) {
-        Hash last = history.back();
-        history.pop_back();
-
-        HashCountMapIt it = counts.find(last);
-        if (it != counts.end()) {
-            if (--(it->second) == 0) {
-                counts.erase(it);
-            }
-        }
     }
 }

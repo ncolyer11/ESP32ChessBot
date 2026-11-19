@@ -20,7 +20,6 @@ void undo_promotion_move(Board *b, int from, int to, Piece moved, Piece captured
 void undo_en_passant_move(Board *b, int from, int to, Piece moved);
 void undo_castling_move(Board *b, int from, int to, Piece moved);
 
-int partition(Move *moves, int *scores, int low, int high);
 
 std::vector<Move> move_history;
 
@@ -50,10 +49,9 @@ bool make_move_on_board(Board *b, Move move, bool in_search) {
     Piece captured = b->squares[to];
 
     if (!in_search) {
-        // save the move and squares only position hash
         move_history.push_back(move);
-        add_position_hash(board_pos_history, board_pos_counts, hash_board_state(b, true));
     }
+    b->hash_history.push_back(b->zobrist);
 
     // save the current state before making the move
     UndoState state_to_save;
@@ -63,16 +61,36 @@ bool make_move_on_board(Board *b, Move move, bool in_search) {
     state_to_save.half_move_clock = b->half_move_clock;
     state_to_save.full_moves = b->full_moves;
     state_to_save.captured_piece = captured;
+    state_to_save.zobrist = b->zobrist;
     b->undo_state_stack.push_back(state_to_save);
+
+    Hash h = b->zobrist;
+    uint8_t old_castling = b->castling_rights;
+    if (b->enpassant_square < 64) h ^= ZOBRIST.ep_file[b->enpassant_square & 7];
+    int pidx = piece_to_bb_idx(piece);
 
     if (flag >= PROMOTION_QUEEN_FLAG && flag <= PROMOTION_BISHOP_FLAG) {
         apply_promotion_move(b, from, to, piece, captured, flag);
+        b->enpassant_square = 64;
+        h ^= ZOBRIST.piece[pidx][from] ^ ZOBRIST.piece[piece_to_bb_idx(b->squares[to])][to];
+        if (captured != NONE) h ^= ZOBRIST.piece[piece_to_bb_idx(captured)][to];
     } else if (flag == ENPASSANT_FLAG) {
         apply_en_passant_move(b, from, to, piece);
+        int cap_sq = to + (b->side_to_move ? 8 : -8);
+        h ^= ZOBRIST.piece[pidx][from] ^ ZOBRIST.piece[pidx][to]
+           ^ ZOBRIST.piece[piece_to_bb_idx(PAWN | opponent_colour(b))][cap_sq];
     } else if (flag == CASTLING_FLAG) {
         apply_castling_move(b, from, to, piece);
+        b->enpassant_square = 64;
+        int rook_from = (to == 6) ? 7 : (to == 2) ? 0 : (to == 62) ? 63 : 56;
+        int rook_to = (to == 6) ? 5 : (to == 2) ? 3 : (to == 62) ? 61 : 59;
+        int ridx = piece_to_bb_idx(ROOK | (piece & COLOUR_MASK));
+        h ^= ZOBRIST.piece[pidx][from] ^ ZOBRIST.piece[pidx][to]
+           ^ ZOBRIST.piece[ridx][rook_from] ^ ZOBRIST.piece[ridx][rook_to];
     } else {
         apply_normal_move(b, from, to, piece, captured);
+        h ^= ZOBRIST.piece[pidx][from] ^ ZOBRIST.piece[pidx][to];
+        if (captured != NONE) h ^= ZOBRIST.piece[piece_to_bb_idx(captured)][to];
         // Double pawn move, i.e. pawn has moved 2 ranks
         if (flag == DOUBLE_PAWN_FLAG) {
             b->enpassant_square = (from + to) / 2; // one square behind it
@@ -81,6 +99,10 @@ bool make_move_on_board(Board *b, Move move, bool in_search) {
         }
     }
     update_castling_rights(b, from, to, piece, captured);
+    h ^= ZOBRIST.castling[old_castling & 15] ^ ZOBRIST.castling[b->castling_rights & 15];
+    if (b->enpassant_square < 64) h ^= ZOBRIST.ep_file[b->enpassant_square & 7];
+    h ^= ZOBRIST.side;
+    b->zobrist = h;
 
     // update move trackers
     if ((piece & TYPE_MASK) == PAWN || captured != NONE) {
@@ -88,9 +110,12 @@ bool make_move_on_board(Board *b, Move move, bool in_search) {
     } else {
         b->half_move_clock++;
     }
-    if (!(b->side_to_move)) b->full_moves++;
+    if (b->side_to_move) b->full_moves++; // full move counter ticks after black moves
     b->side_to_move ^= 1;
 
+#ifdef CHESS_DEBUG
+    if (b->zobrist != compute_zobrist(b)) std::cerr << "[zobrist] mismatch after " << move_to_move_str(move) << std::endl;
+#endif
     return true;
 }
 
@@ -120,8 +145,9 @@ void unmake_move_on_board(Board *b, Move move, bool in_search) {
 
     if (!in_search) {
         move_history.pop_back();
-        remove_last_position_hash(board_pos_history, board_pos_counts);
     }
+
+    if (!b->hash_history.empty()) b->hash_history.pop_back();
 
     // Pop the previous state from the stack
     UndoState restored_state = b->undo_state_stack.back(); b->undo_state_stack.pop_back();
@@ -135,6 +161,7 @@ void unmake_move_on_board(Board *b, Move move, bool in_search) {
     b->half_move_clock = restored_state.half_move_clock;
     b->full_moves = restored_state.full_moves;
     b->side_to_move = restored_state.side_to_move;
+    b->zobrist = restored_state.zobrist;
 
     // Reverse piece‐placement
     if (flag >= PROMOTION_QUEEN_FLAG && flag <= PROMOTION_BISHOP_FLAG) {
@@ -242,55 +269,19 @@ void update_castling_rights(Board *b, int from, int to, Piece piece, Piece captu
     }
 }
 
-bool printed = false;
 // -- King in check detection (uses attack bitboards) --
 bool king_in_check(Board *b) {
     bool side_to_move = b->side_to_move;
     Piece king = KING | (side_to_move ? BLACK : WHITE);
     U64 king_bb = bitboard_for_piece(b, king);
-    if (king_bb == 0) {
-        std::cout << "[king_in_check] King not found for side "
-                  << (side_to_move ? "Black" : "White") << std::endl;
-        if (!printed) {
-            std::cout << "Board state:" << std::endl;
-            print_board_from_bbs(b, true);
-            printed = true;
-        }
-        return false;
-    }
+    if (king_bb == 0) return false; // no king (only happens in broken positions)
 
     int king_sq = bit_scan_forward(king_bb);
     uint8_t opponent_color = side_to_move ? WHITE : BLACK;
 
-    // --- Pawn attacks ---
-    // Calculate the squares from which an opponent's pawn could attack the king
-    U64 potential_attacking_pawn_squares = 0ULL;
-
-    if (!side_to_move) { // King is White (b->side_to_move == 0), so attacked by Black pawns
-        // Check for boundary conditions:
-        if (king_sq / 8 < 6) { // King is below 7th rank
-            if (king_sq % 8 > 0) { // King is not on 'a' file
-                potential_attacking_pawn_squares |= (1ULL << (king_sq + 7)); 
-            }
-            if (king_sq % 8 < 7) { // King is not on 'h' file
-                potential_attacking_pawn_squares |= (1ULL << (king_sq + 9));
-            }
-        }
-    } else { // King is Black (b->side_to_move == 1), so attacked by White pawns
-        // Check for boundary conditions:
-        if (king_sq / 8 > 1) { // King is above 1st rank
-            if (king_sq % 8 > 0) { // King is not on 'a' file
-                potential_attacking_pawn_squares |= (1ULL << (king_sq - 9));
-            }
-            if (king_sq % 8 < 7) { // King is not on 'h' file
-                potential_attacking_pawn_squares |= (1ULL << (king_sq - 7)); 
-            }
-        }
-    }
-
-    // Now, check if any opponent pawns actually occupy these potential attacking squares
-    U64 actual_opponent_pawns = bitboard_for_piece(b, PAWN | opponent_color);
-    if (potential_attacking_pawn_squares & actual_opponent_pawns) {
+    // Pawn attacks: squares a pawn of our colour would attack from the king square
+    // are exactly the squares an enemy pawn attacks the king from
+    if (pawn_attacks[side_to_move][king_sq] & bitboard_for_piece(b, PAWN | opponent_color)) {
         return true;
     }
 
@@ -376,6 +367,7 @@ Move move_str_to_move(std::string move_str) {
     }
     int from = alg_to_square_idx(move_str.substr(0, 2));
     int to = alg_to_square_idx(move_str.substr(2, 2));
+    if (from < 0 || to < 0) return INVALID_MOVE;
     int flag = 0;
     if (move_str.length() == 5) {
         switch (move_str[4]) {
@@ -471,30 +463,4 @@ void undo_castling_move(Board *b, int from, int to, Piece king) {
     b->squares[rook_from] = rook;
     b->squares[rook_to] = NONE;
     b->bitboards[piece_to_bb_idx(rook)] ^= (1ULL << rook_from) | (1ULL << rook_to);
-}
-
-// quicksort function
-// Partition function for parallel sorting of moves and scores
-int partition(Move* moves, int* scores, int low, int high) {
-    int pivot = scores[high]; // use the score at high as the pivot
-    int i = low - 1;
-    for (int j = low; j < high; j++) {
-        // Change > to < for ascending order
-        if (scores[j] > pivot) { // Sort descending
-            i++;
-            std::swap(moves[i], moves[j]);
-            std::swap(scores[i], scores[j]);
-        }
-    }
-    std::swap(moves[i + 1], moves[high]);
-    std::swap(scores[i + 1], scores[high]);
-    return i + 1;
-}
-
-void quicksort_moves(Move* moves, int* scores, int low, int high) {
-    if (low < high) {
-        int pi = partition(moves, scores, low, high);
-        quicksort_moves(moves, scores, low, pi - 1);
-        quicksort_moves(moves, scores, pi + 1, high);
-    }
 }

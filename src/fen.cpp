@@ -3,14 +3,83 @@
 #include <cctype>
 #include <iostream>
 #include <limits>
-#include <regex>
 #include <string>
 
 #include "board.h"
 #include "boardRepresentation.h"
 #include "piece.h"
 #include "fen.h"
+#include "move.h"
 #include "util.h"
+
+const std::string starting_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+static const std::string check_fen = "4k3/8/2p5/2P5/8/2b5/1N3P2/K6N w - - 0 1";
+static const std::string stalemate_fen = "7k/2p5/5N2/2P5/8/5R2/1N3P2/K7 b - - 0 1";
+static const std::string queens_fen = "rnbqkbnr/qpqqpqpp/7p/8/8/P7/PQQPPQQQ/RNBQKBNR w KQkq - 0 1";
+static const std::string coverage_fen = "r3kb1r/pp3bP1/3n4/1r6/1n1p4/R7/pKPQ1p1q/8 w q - 0 1";
+static const std::string castling_fen = "r3k1r1/1ppppp2/3r1p2/8/8/4PP2/1PP1PP2/R3K2R w KQkq - 0 1";
+static const std::string checkmate_fen = "k7/pp5R/8/8/8/8/8/K7 w - - 0 1";
+static const std::string take_out_of_check_fen = "1k6/ppp5/8/2b5/8/4BN2/1P2QPPP/5RK1 w - - 0 1";
+static const std::string rook_only_cm_fen = "6k1/8/8/3P4/2K5/8/8/8 b - - 2 73";
+
+// Hand-written FEN check (no std::regex: it is huge on ESP32). The last two fields are optional.
+bool is_valid_fen(const std::string &fen) {
+    size_t i = 0, n = fen.size();
+    int wk = 0, bk = 0;
+    for (int rank = 0; rank < 8; rank++) {
+        int files = 0;
+        for (; i < n && fen[i] != '/' && fen[i] != ' '; i++) {
+            char c = fen[i];
+            if (c >= '1' && c <= '8') {
+                files += c - '0';
+            } else if (strchr("pnbrqkPNBRQK", c) && c != '\0') {
+                if ((c == 'p' || c == 'P') && (rank == 0 || rank == 7)) return false;
+                if (c == 'K') wk++;
+                if (c == 'k') bk++;
+                files++;
+            } else {
+                return false;
+            }
+            if (files > 8) return false;
+        }
+        if (files != 8) return false;
+        if (rank < 7) {
+            if (i >= n || fen[i] != '/') return false;
+            i++;
+        }
+    }
+    if (wk != 1 || bk != 1) return false;
+    if (i >= n || fen[i] != ' ') return false;
+    i++;
+    if (i >= n || (fen[i] != 'w' && fen[i] != 'b')) return false;
+    i++;
+    if (i >= n || fen[i] != ' ') return false;
+    i++;
+    if (i < n && fen[i] == '-') {
+        i++;
+    } else {
+        int cnt = 0;
+        for (; i < n && fen[i] != ' '; i++, cnt++) if (!strchr("KQkq", fen[i])) return false;
+        if (cnt == 0 || cnt > 4) return false;
+    }
+    if (i >= n || fen[i] != ' ') return false;
+    i++;
+    if (i < n && fen[i] == '-') {
+        i++;
+    } else {
+        if (i + 1 >= n || fen[i] < 'a' || fen[i] > 'h' || (fen[i + 1] != '3' && fen[i + 1] != '6')) return false;
+        i += 2;
+    }
+    // optional halfmove clock and fullmove number
+    for (int field = 0; field < 2 && i < n; field++) {
+        if (fen[i] != ' ') return false;
+        i++;
+        size_t start = i;
+        for (; i < n && isdigit((unsigned char)fen[i]); i++) {}
+        if (i == start) return false;
+    }
+    return i == n;
+}
 
 void parse_and_load_fen_params(Board *b, const char *rest);
 std::string parse_and_export_fen_params(Board *b);
@@ -24,21 +93,32 @@ std::string parse_and_export_fen_params(Board *b);
  *
  * @param fen The FEN string describing the board state.
  */
-void load_position_from_fen(Board *b, std::string fen) {
-    // Clear old Board state
+bool load_position_from_fen(Board *b, std::string fen) {
+    bool valid = is_valid_fen(fen);
+    if (!valid) {
+        std::cout << "Invalid FEN: " << fen << "\nUsing default starting position." << std::endl;
+        fen = starting_fen;
+    }
+
+    // Reset all state
     std::memset(b->squares, NONE, sizeof(b->squares));
     std::memset(b->bitboards, 0, sizeof(b->bitboards));
+    b->undo_state_stack.clear();
+    b->hash_history.clear();
+    b->enpassant_square = 64;
+    b->half_move_clock = 0;
+    b->full_moves = 1;
+    move_history.clear();
+
     std::cout << "Loading position from FEN: " << fen << std::endl;
     int file = 0, rank = 7;
 
     // Only take board layout (before first space)
-    char fen_board[128];
-    int i;
-    for (i = 0; fen[i] != ' ' && fen[i] != '\0' && i < 127; ++i) fen_board[i] = fen[i];
-    fen_board[i] = '\0';
+    size_t board_len = fen.find(' ');
+    if (board_len == std::string::npos) board_len = fen.size();
 
-    for (int idx = 0; fen_board[idx] != '\0'; idx++) {
-        char symbol = fen_board[idx];
+    for (size_t idx = 0; idx < board_len; idx++) {
+        char symbol = fen[idx];
         if (symbol == '/') {
             file = 0;
             rank--;
@@ -47,16 +127,16 @@ void load_position_from_fen(Board *b, std::string fen) {
         } else {
             Piece piece = symbol_to_piece(symbol);
             uint8_t square_idx = file_rank_to_square_idx(file, rank);
-            // 64-bit mask with 1 at the square position, 1ULL is a 64-bit unsigned long long
-            U64 square_mask = 1ULL << square_idx;
             b->squares[square_idx] = piece;
-            b->bitboards[piece_to_bb_idx(piece)] |= square_mask;
+            b->bitboards[piece_to_bb_idx(piece)] |= 1ULL << square_idx;
             file++;
         }
     }
 
     // Parse the rest of the FEN parameters
-    parse_and_load_fen_params(b, fen.c_str() + strlen(fen_board));
+    parse_and_load_fen_params(b, fen.c_str() + board_len);
+    b->zobrist = compute_zobrist(b);
+    return valid;
 }
 
 /**
@@ -108,10 +188,7 @@ std::string choose_fen() {
         if (fen == "rookcm") return rook_only_cm_fen;
     }
 
-    if (std::regex_match(fen, fen_regex)) return fen;
-    
-    std::cout << "Invalid FEN format. Using default starting position." << std::endl;
-    return starting_fen;
+    return fen; // validated (or replaced by the default) in load_position_from_fen
 }
 
 void ask_export_fen(Board *b) {
@@ -161,13 +238,14 @@ void parse_and_load_fen_params(Board *b, const char *rest) {
     }
     if (*rest == ' ') rest++;
 
-    // 5. Parse halfmove clock
-    b->half_move_clock = atoi(rest);
+    // 5. Parse halfmove clock (optional)
+    b->half_move_clock = *rest ? atoi(rest) : 0;
     while (*rest && *rest != ' ') rest++;
     if (*rest == ' ') rest++;
 
-    // 6. Parse fullmove number
-    b->full_moves = atoi(rest);
+    // 6. Parse fullmove number (optional)
+    b->full_moves = *rest ? atoi(rest) : 1;
+    if (b->full_moves < 1) b->full_moves = 1;
 }
 
 std::string parse_and_export_fen_params(Board *b) {
@@ -178,10 +256,10 @@ std::string parse_and_export_fen_params(Board *b) {
 
     // Castling rights
     std::string castling;
-    if (b->castling_rights & 0b1000) castling += 'K';
-    if (b->castling_rights & 0b0100) castling += 'Q';
-    if (b->castling_rights & 0b0010) castling += 'k';
-    if (b->castling_rights & 0b0001) castling += 'q';
+    if (b->castling_rights & 0b0001) castling += 'K';
+    if (b->castling_rights & 0b0010) castling += 'Q';
+    if (b->castling_rights & 0b0100) castling += 'k';
+    if (b->castling_rights & 0b1000) castling += 'q';
     if (castling.empty()) castling = "-";
     fen_params += castling + " ";
 

@@ -17,7 +17,9 @@ extern int orthogonal_distance[64][64];
 extern int king_distance[64][64];
 extern int centre_manhattan_distance[64];
 
-constexpr int DEPTH = 6; // depth for the bot to search
+constexpr int DEFAULT_DEPTH = 6; // default max search depth for the bot
+extern int bot_depth;   // --depth
+extern int bot_time_ms; // --time, 0 = no limit
 
 constexpr const char *RESET      = "\033[0m";
 constexpr const char *RESET_LINE = "\033[0K";
@@ -35,8 +37,6 @@ int piece_to_bb_idx(Piece piece);
 Piece symbol_to_piece(char symbol);
 int bit_scan_forward(U64 bb);
 int popcount(uint64_t x);
-void test_popcount(U64 x);
 
-void check_for_test_mode();
 // strip UTF-8 BOM (0xEF,0xBB,0xBF) and trailing '\r'
 void normalise_line(std::string &s);

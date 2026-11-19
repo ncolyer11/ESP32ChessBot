@@ -19,7 +19,11 @@ uint64_t knight_attacks[64];
 uint64_t king_attacks[64];
 
 Move gen_and_validate_all_moves(Board *b, MoveList *legal_move_list);
-Move process_command_moves(Board *b, std::string move_str);
+
+enum CommandResult { CMD_NOT_A_COMMAND, CMD_HANDLED, CMD_QUIT, CMD_UNDONE };
+static CommandResult process_command_moves(Board *b, std::string move_str);
+static void print_help();
+static bool undo_plies(Board *b, int plies);
 
 // Request next move from the current player
 Move get_next_player_move(Board *b) {
@@ -27,8 +31,7 @@ Move get_next_player_move(Board *b) {
     MoveList legal_move_list = { {}, 0 };
     if (gen_and_validate_all_moves(b, &legal_move_list) == NO_MOVES) return NO_MOVES;
 
-    Move move;
-    do {
+    while (true) {
         std::string move_str;
         std::cout << ((b->side_to_move == 0) ? "White" : "Black") << " to move: ";
         if (!(std::cin >> move_str)) {  // exit on EOF (ctrl + z + enter on Windows *apparently*)
@@ -36,69 +39,80 @@ Move get_next_player_move(Board *b) {
             return INVALID_MOVE;
         }
 
-        Move cmd_move = process_command_moves(b, move_str);
-        if (cmd_move == INVALID_MOVE) {
-            return INVALID_MOVE;
-        } else if (cmd_move == NO_MOVES) {
-            return get_next_player_move(b);
-        }
+        CommandResult cmd = process_command_moves(b, move_str);
+        if (cmd == CMD_QUIT) return INVALID_MOVE;
+        if (cmd == CMD_UNDONE) return UNDO_DONE;
+        if (cmd == CMD_HANDLED) continue;
 
-        move = move_str_to_move(move_str);
-    } while (!is_valid_move(&move, legal_move_list));
-
-    return move;
+        Move move = move_str_to_move(move_str);
+        if (move != INVALID_MOVE && is_valid_move(&move, legal_move_list)) return move;
+        if (move == INVALID_MOVE) std::cout << "Invalid move: " << move_str << " (type h for help)" << std::endl;
+    }
 }
 
-Move process_command_moves(Board *b, std::string move_str) {
+static void print_help() {
+    std::cout << "Enter a move like e2e4 (e7e8q to promote, queen by default) or a command:\n"
+              << "  u  undo back to your last turn (2 plies vs the bot, 1 in 2 player games)\n"
+              << "  z  undo the last 2 plies\n"
+              << "  f  print FEN        d  draw board from bitboards\n"
+              << "  p  print params     b  print bitboards\n"
+              << "  r  resign           q  quit\n"
+              << "  h  this help" << std::endl;
+}
+
+// Undo the given number of plies if there is that much history
+static bool undo_plies(Board *b, int plies) {
+    if ((int)move_history.size() < plies) {
+        std::cout << "Nothing to undo." << std::endl;
+        return false;
+    }
+    std::cout << "Undoing " << plies << (plies == 1 ? " ply" : " plies") << ":";
+    for (int i = 0; i < plies; i++) {
+        Move last_move = move_history.back();
+        std::cout << " " << move_to_move_str(last_move);
+        unmake_move_on_board(b, last_move);
+    }
+    std::cout << std::endl;
+    return true;
+}
+
+static CommandResult process_command_moves(Board *b, std::string move_str) {
     // Convert move_str to lowercase for easier comparison
     std::transform(move_str.begin(), move_str.end(), move_str.begin(), ::tolower);
     if (move_str == "q") {
         std::cout << "Game ended prematurely by user." << std::endl;
-        return INVALID_MOVE;
+        return CMD_QUIT;
     } else if (move_str == "r") {
-        std::cout << "Resigning..." << std::endl;
-        return INVALID_MOVE;
+        std::cout << (b->side_to_move == 0 ? "White" : "Black") << " resigns. "
+                  << (b->side_to_move == 0 ? "Black" : "White") << " wins." << std::endl;
+        return CMD_QUIT;
     } else if (move_str == "u") {
-        if (move_history.size() < 1) {
-            std::cout << "No move to undo." << std::endl;
-            return NO_MOVES;
-        }
-        Move last_move = move_history.back();
-        unmake_move_on_board(b, last_move);
-        std::cout << "Undoing last ply (half a move): " << move_to_move_str(last_move) << std::endl;
-        print_board(b, true, MODE);
-        return NO_MOVES;
+        // vs a bot, go back to the human's previous turn (skip the bot's reply too)
+        bool opponent_is_bot = !player_types[b->side_to_move ^ 1];
+        return undo_plies(b, opponent_is_bot ? 2 : 1) ? CMD_UNDONE : CMD_HANDLED;
     } else if (move_str == "z") {
-        if (move_history.size() < 2) {
-            std::cout << "No moves to undo." << std::endl;
-            return NO_MOVES;
-        }
-        Move last_move = move_history.back();
-        Move second_last_move = *(move_history.rbegin() + 1);
-        unmake_move_on_board(b, last_move);
-        unmake_move_on_board(b, second_last_move);
-        std::cout << "Undoing last 2 plys (1 move): " << move_to_move_str(last_move)
-                  << " and " << move_to_move_str(second_last_move) << std::endl;
-        print_board(b, true, MODE);
-        return NO_MOVES;       
+        return undo_plies(b, 2) ? CMD_UNDONE : CMD_HANDLED;
     } else if (move_str == "f") {
         std::cout << "Exporting FEN: " << export_position_to_fen(b) << std::endl;
-        return NO_MOVES;
+        return CMD_HANDLED;
     } else if (move_str == "d") {
         print_board_from_bbs(b, true);
-        return NO_MOVES;
+        return CMD_HANDLED;
     } else if (move_str == "p") {
         print_params(b);
-        return NO_MOVES;
+        return CMD_HANDLED;
     } else if (move_str == "b") {
         print_bitboards(b);
-        return NO_MOVES;
+        return CMD_HANDLED;
+    } else if (move_str == "h" || move_str == "help" || move_str == "?") {
+        print_help();
+        return CMD_HANDLED;
     }
 
-    return 1;
+    return CMD_NOT_A_COMMAND;
 }
 
-bool is_valid_move(Move *move, MoveList legal_move_list) {
+bool is_valid_move(Move *move, const MoveList &legal_move_list) {
     for (int i = 0; i < legal_move_list.count; ++i) {
         int flag = move_flag(*move);
         Move legal_move = legal_move_list.moves[i];
@@ -141,15 +155,10 @@ void generate_moves(Board *b, MoveList *legal_move_list, bool only_captures) {
 }
 
 // -- Legal move filtering --
-void filter_legal_moves(Board *b, MoveList move_list, MoveList *legal_move_list) {
+void filter_legal_moves(Board *b, const MoveList &move_list, MoveList *legal_move_list) {
     legal_move_list->count = 0;
     for (int i = 0; i < move_list.count; i++) {
-        std::string move_str = move_to_move_str(move_list.moves[i]);
-    
-        bool in_check = get_check(b, move_list.moves[i], 101);
-        // bool is_repeat = is_repetition(board_pos_counts, hash_board_state(b, true));
-
-        if (!in_check /*&& !is_repeat*/) {
+        if (!get_check(b, move_list.moves[i], 101)) {
             legal_move_list->moves[legal_move_list->count++] = move_list.moves[i];
         }
     }
@@ -200,6 +209,17 @@ void init_attack_bitboards() {
     }
 }
 
+static inline U64 friendly_occupancy(Board *b) {
+    int c = b->side_to_move ? 6 : 0;
+    return b->bitboards[c] | b->bitboards[c + 1] | b->bitboards[c + 2] |
+           b->bitboards[c + 3] | b->bitboards[c + 4] | b->bitboards[c + 5];
+}
+static inline U64 opponent_occupancy(Board *b) {
+    int c = b->side_to_move ? 0 : 6;
+    return b->bitboards[c] | b->bitboards[c + 1] | b->bitboards[c + 2] |
+           b->bitboards[c + 3] | b->bitboards[c + 4] | b->bitboards[c + 5];
+}
+
 // -- King moves (not castling) --
 void generate_king_moves(Board *b, MoveList *move_list, bool only_captures) {
     Piece king_piece = KING | friendly_colour(b);
@@ -207,15 +227,11 @@ void generate_king_moves(Board *b, MoveList *move_list, bool only_captures) {
     if (!king_bb) return; // No king on the board
     int king_sq = bit_scan_forward(king_bb);
 
-    uint64_t king_targets = king_attacks[king_sq];
-    for (int sq_idx = 0; sq_idx < 64; sq_idx++) {
-        Piece to_square = b->squares[sq_idx];
-        if ((king_targets & (1ULL << sq_idx)) && 
-            (!is_friendly(b, to_square) || to_square == NONE)) {
-                
-            if (only_captures && to_square == NONE) continue; 
-            add_move(move_list, king_sq, sq_idx, 0);
-        }
+    U64 targets = king_attacks[king_sq] & ~friendly_occupancy(b);
+    if (only_captures) targets &= opponent_occupancy(b);
+    while (targets) {
+        add_move(move_list, king_sq, bit_scan_forward(targets), 0);
+        targets &= targets - 1;
     }
 }
 
@@ -257,27 +273,30 @@ void generate_castling_moves(Board *b, MoveList *move_list, bool only_captures) 
 // -- Sliding piece moves (rooks, bishops, queens) --
 void generate_sliding_moves(Board *b, MoveList *move_list, bool only_captures) {
     static const int directions[8] = {1, -1, 8, -8, 9, -9, 7, -7};
-    for (int i = 0; i < 64; i++) {
-        Piece p = b->squares[i];
-        if (!is_friendly(b, p)) continue;
-        int type = p & TYPE_MASK;
-        int start_dir = (type == ROOK) ? 0 : (type == BISHOP) ? 4 : 0;
-        int end_dir = (type == ROOK) ? 4 : (type == BISHOP) ? 8 : (type == QUEEN) ? 8 : 0;
-        if (type != ROOK && type != BISHOP && type != QUEEN) continue;
-        for (int d = start_dir; d < end_dir; ++d) {
-            int n = i;
-            while (true) {
-                int next = n + directions[d];
-                if (next < 0 || next >= 64 || abs((n % 8) - (next % 8)) > 2) break;
-                Piece target = b->squares[next];
-                if (is_friendly(b, target)) break;
-                if (only_captures && target == NONE) {
-                    n = next; // skip empty squares if only captures are requested
-                    continue;
+    int c = b->side_to_move ? 6 : 0;
+    // rooks (idx 4), bishops (3), queens (5)
+    for (int type = 3; type <= 5; type++) {
+        int start_dir = (type == 4) ? 0 : (type == 3) ? 4 : 0;
+        int end_dir = (type == 4) ? 4 : 8;
+        U64 pieces = b->bitboards[c + type];
+        while (pieces) {
+            int i = bit_scan_forward(pieces);
+            pieces &= pieces - 1;
+            for (int d = start_dir; d < end_dir; ++d) {
+                int n = i;
+                while (true) {
+                    int next = n + directions[d];
+                    if (next < 0 || next >= 64 || abs((n % 8) - (next % 8)) > 2) break;
+                    Piece target = b->squares[next];
+                    if (is_friendly(b, target)) break;
+                    if (only_captures && target == NONE) {
+                        n = next; // skip empty squares if only captures are requested
+                        continue;
+                    }
+                    add_move(move_list, i, next, 0);
+                    if (target != NONE) break;
+                    n = next;
                 }
-                add_move(move_list, i, next, 0);
-                if (target != NONE) break;
-                n = next;
             }
         }
     }
@@ -285,15 +304,16 @@ void generate_sliding_moves(Board *b, MoveList *move_list, bool only_captures) {
 
 // -- Knight moves --
 void generate_knight_moves(Board *b, MoveList *move_list, bool only_captures) {
-    for (int i = 0; i < 64; i++) {
-        if (b->squares[i] != (KNIGHT | friendly_colour(b))) continue;
-        uint64_t attacks = knight_attacks[i];
-        for (int t = 0; t < 64; t++) {
-            Piece to_square = b->squares[t];
-            if ((attacks & (1ULL << t)) && !is_friendly(b, to_square)) {
-                if (only_captures && to_square == NONE) continue;
-                add_move(move_list, i, t, 0);
-            }
+    U64 knights = b->bitboards[piece_to_bb_idx(KNIGHT | friendly_colour(b))];
+    U64 mask = ~friendly_occupancy(b);
+    if (only_captures) mask &= opponent_occupancy(b);
+    while (knights) {
+        int i = bit_scan_forward(knights);
+        knights &= knights - 1;
+        U64 targets = knight_attacks[i] & mask;
+        while (targets) {
+            add_move(move_list, i, bit_scan_forward(targets), 0);
+            targets &= targets - 1;
         }
     }
 }
@@ -303,8 +323,10 @@ void generate_pawn_moves(Board *b, MoveList *move_list, bool only_captures) {
     int direction = b->side_to_move ? -8 : 8;
     int start_rank = b->side_to_move ? 6 : 1;
     int promotion_rank = b->side_to_move ? 0 : 7;
-    for (int sq_idx = 0; sq_idx < 64; sq_idx++) {
-        if (b->squares[sq_idx] != (PAWN | friendly_colour(b))) continue;
+    U64 pawns = b->bitboards[piece_to_bb_idx(PAWN | friendly_colour(b))];
+    while (pawns) {
+        int sq_idx = bit_scan_forward(pawns);
+        pawns &= pawns - 1;
         // Forward move
         int to = sq_idx + direction;
         if (!only_captures && (to >= 0 && to < 64 && b->squares[to] == NONE)) {
@@ -385,9 +407,15 @@ bool check_end_game_conditions(Board *b, int legal_moves_count) {
         return false;
     }
 
-    if (is_repetition(board_pos_counts, hash_board_state(b, true))) {
+    if (repetition_count(b) >= 2) {
         print_board(b, true);
         std::cout << "Draw by threefold repetition!" << std::endl;
+        return false;
+    }
+
+    if (is_insufficient_material(b)) {
+        print_board(b, true);
+        std::cout << "Draw by insufficient material!" << std::endl;
         return false;
     }
 
@@ -405,17 +433,11 @@ bool is_checkmate(int legal_moves_count, bool is_king_in_check) {
 }
 
 bool is_draw(uint8_t half_move_clock) {
-    return half_move_clock > 100;
+    return half_move_clock >= 100;
 }
 
 bool is_stalemate(int legal_moves_count, bool is_king_in_check) {
     return (legal_moves_count == 0) && !is_king_in_check;
-}
-
-bool is_repetition(const HashCountMap& board_position_counts, Hash hash) {
-    HashCountMapConstIt it = board_position_counts.find(hash);
-    bool has_3_plus_hashes = it != board_position_counts.end() && it->second >= 3;
-    return has_3_plus_hashes;
 }
 
 Move gen_and_validate_all_moves(Board *b, MoveList *legal_move_list) {
@@ -423,4 +445,19 @@ Move gen_and_validate_all_moves(Board *b, MoveList *legal_move_list) {
     if (!check_end_game_conditions(b, legal_move_list->count)) return NO_MOVES;
 
     return true; // indicates available moves
+}
+
+// Counts leaf nodes of the legal move tree
+uint64_t perft(Board *b, int depth) {
+    if (depth == 0) return 1;
+    MoveList moves;
+    generate_moves(b, &moves);
+    if (depth == 1) return moves.count;
+    uint64_t nodes = 0;
+    for (int i = 0; i < moves.count; i++) {
+        make_move_on_board(b, moves.moves[i], true);
+        nodes += perft(b, depth - 1);
+        unmake_move_on_board(b, moves.moves[i], true);
+    }
+    return nodes;
 }
