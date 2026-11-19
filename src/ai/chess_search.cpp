@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
 
 #include "board.h"
@@ -9,24 +11,22 @@
 #include "fen.h"
 #include "move.h"
 #include "movegen.h"
+#include "platform.h"
 #include "util.h"
 
 // ---------------------------------------------------------------------------
 // Tunables / constants
 // ---------------------------------------------------------------------------
 constexpr int MAX_PLY = 64;                       // search stack bound (fixed arrays)
+#ifdef ESP_PLATFORM
+constexpr int MAX_DEPTH = 16;                     // keeps the task stack small
+#else
 constexpr int MAX_DEPTH = 48;
+#endif
 constexpr int MAX_QUIESCENCE_PLY = 8;             // cap on extra capture plies
 constexpr int MATE_THRESHOLD = MATE_BASE_SCORE - 1000;
 constexpr int BOOK_MARGIN = 30;                   // book move accepted if within this of the best score
 constexpr int TIME_CHECK_MASK = 2047;             // check the clock every 2048 nodes
-
-#ifdef ESP_PLATFORM
-constexpr int TT_BITS = 12;
-#else
-constexpr int TT_BITS = 16;
-#endif
-constexpr uint32_t TT_SIZE = 1u << TT_BITS;
 
 enum TTBound : uint8_t { TT_NONE = 0, TT_EXACT, TT_LOWER, TT_UPPER };
 
@@ -38,7 +38,9 @@ struct TTEntry {
     uint8_t bound;
 };
 
-static TTEntry tt_table[TT_SIZE];
+static TTEntry *tt_table = nullptr;
+static uint32_t tt_mask = 0;  // entry count - 1
+static uint32_t tt_count = 0;
 
 struct SearchState {
     uint64_t nodes;
@@ -77,13 +79,32 @@ static inline int score_from_tt(int score, int ply) {
     return score;
 }
 
+// (Re)allocates the transposition table with 2^bits entries, returns false if there was no memory
+bool tt_init(int bits) {
+    if (tt_table) std::free(tt_table);
+    tt_table = nullptr;
+    tt_mask = tt_count = 0;
+    tt_table = static_cast<TTEntry *>(platform_alloc_tt(sizeof(TTEntry) << bits));
+    if (!tt_table) return false;
+    tt_count = 1u << bits;
+    tt_mask = tt_count - 1;
+    return true;
+}
+
+void tt_clear() {
+    if (tt_table) std::memset(tt_table, 0, sizeof(TTEntry) * tt_count);
+}
+
+size_t tt_bytes() { return sizeof(TTEntry) * tt_count; }
+
 static inline double elapsed_ms() {
     return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - ss.start).count();
 }
 
 static inline void check_time() {
-    if (ss.timed && ss.can_stop && (ss.nodes & TIME_CHECK_MASK) == 0 &&
-        std::chrono::steady_clock::now() >= ss.deadline) {
+    if ((ss.nodes & TIME_CHECK_MASK) != 0) return;
+    platform_yield();
+    if (ss.timed && ss.can_stop && std::chrono::steady_clock::now() >= ss.deadline) {
         ss.stopped = true;
     }
 }
@@ -239,10 +260,10 @@ static int search(Board *b, int depth, int alpha, int beta, int ply) {
     const int alpha_orig = alpha;
 
     // Transposition table probe
-    TTEntry *entry = &tt_table[b->zobrist & (TT_SIZE - 1)];
+    TTEntry *entry = tt_table ? &tt_table[b->zobrist & tt_mask] : nullptr;
     const uint32_t key_check = static_cast<uint32_t>(b->zobrist >> 32);
     Move tt_move = NO_MOVES;
-    if (entry->bound != TT_NONE && entry->key == key_check) {
+    if (entry && entry->bound != TT_NONE && entry->key == key_check) {
         tt_move = entry->move;
         if (!is_pv && entry->depth >= depth) {
             int s = score_from_tt(entry->score, ply);
@@ -298,7 +319,7 @@ static int search(Board *b, int depth, int alpha, int beta, int ply) {
     }
 
     // Store in the TT (always replace, unless it's the same position searched deeper)
-    if (entry->bound == TT_NONE || entry->key != key_check || entry->depth <= depth) {
+    if (entry && (entry->bound == TT_NONE || entry->key != key_check || entry->depth <= depth)) {
         entry->key = key_check;
         entry->score = score_to_tt(best, ply);
         entry->move = best_move;

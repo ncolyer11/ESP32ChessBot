@@ -9,6 +9,7 @@
 #include "eval.h"
 #include "fen.h"
 #include "movegen.h"
+#include "platform.h"
 #include "util.h"
 
 struct PerftCase { const char *fen; int depth; uint64_t expected[5]; };
@@ -23,6 +24,7 @@ Mode ask_mode();
 void app_init() {
     init_attack_bitboards();
     init_distance_tables();
+    if (!tt_init(platform_tt_bits())) std::cout << "No memory for the transposition table, searching without one" << std::endl;
 }
 
 int app_run(const AppConfig &cfg) {
@@ -31,7 +33,9 @@ int app_run(const AppConfig &cfg) {
     bot_time_ms = cfg.time_ms;
 
     // Seed rng for picking opening book moves (kept deterministic in test mode)
-    if (!MODE) std::srand(std::time(nullptr));
+    if (!MODE) std::srand(platform_random_seed());
+
+    tt_clear();
 
     if (cfg.perft_suite) return run_perft_suite();
     if (cfg.perft_depth > 0) return run_perft(cfg.fen.empty() ? starting_fen : cfg.fen, cfg.perft_depth);
