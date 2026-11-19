@@ -112,7 +112,13 @@ void print_board_from_bbs(Board *b, bool show_params) {
                 if ((b->bitboards[bb_idx] >> square_idx) & 1ULL) {
                     found++;
                     if (found == 1) {
-                        symbol = get_sprite_from_idx(bb_idx);
+                        if (ASCII_BOARD) {
+                            static char letter[3] = "  ";
+                            letter[0] = BB_PIECE_SYMBOLS[bb_idx];
+                            symbol = letter;
+                        } else {
+                            symbol = get_sprite_from_idx(bb_idx);
+                        }
                     } else {
                         static char buf[16];
                         snprintf(buf, sizeof(buf), "%02d", found);

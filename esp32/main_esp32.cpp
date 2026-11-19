@@ -34,13 +34,13 @@ constexpr int MENU_DEFAULT_TIME_MS = 5000;
 static void console_init() {
 #if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
     usb_serial_jtag_driver_config_t cfg = USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
-    usb_serial_jtag_driver_install(&cfg);
+    ESP_ERROR_CHECK(usb_serial_jtag_driver_install(&cfg));
     usb_serial_jtag_vfs_use_driver();
     usb_serial_jtag_vfs_set_rx_line_endings(ESP_LINE_ENDINGS_CR);
     usb_serial_jtag_vfs_set_tx_line_endings(ESP_LINE_ENDINGS_CRLF);
 #else
     const uart_port_t port = (uart_port_t)CONFIG_ESP_CONSOLE_UART_NUM;
-    uart_driver_install(port, 256, 0, 0, nullptr, 0);
+    ESP_ERROR_CHECK(uart_driver_install(port, 256, 0, 0, nullptr, 0));
     uart_vfs_dev_use_driver(port);
     uart_vfs_dev_port_set_rx_line_endings(port, ESP_LINE_ENDINGS_CR); // enter sends CR (or LF)
     uart_vfs_dev_port_set_tx_line_endings(port, ESP_LINE_ENDINGS_CRLF);
@@ -48,22 +48,27 @@ static void console_init() {
     setvbuf(stdin, nullptr, _IONBF, 0);
 }
 
-// Prompt and read one line, returns "" on empty input or EOF.
-// Terminals that send CR+LF give an extra empty line (CR is turned into LF), so an empty line
-// that turns up within a few ms of the previous answer is that leftover LF and gets skipped
+// Throw away anything already typed but not read yet, e.g. the newline left behind by the
+// game's `cin >> move`, or the extra LF from terminals that send CR+LF (CR is turned into LF)
+static void drain_input() {
+    vTaskDelay(pdMS_TO_TICKS(20)); // let the rest of a CR+LF pair arrive
+    uint8_t buf[32];
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+    while (usb_serial_jtag_read_bytes(buf, sizeof(buf), 0) > 0) {}
+#else
+    while (uart_read_bytes((uart_port_t)CONFIG_ESP_CONSOLE_UART_NUM, buf, sizeof(buf), 0) > 0) {}
+#endif
+}
+
+// Prompt and read one line, returns "" on empty input or EOF
 static std::string ask(const char *prompt) {
-    static int64_t last_line_us = 0;
+    drain_input();
     std::cout << prompt << std::flush;
     std::string line;
-    while (true) {
-        if (!std::getline(std::cin, line)) {
-            std::cin.clear();
-            return "";
-        }
-        int64_t now = esp_timer_get_time();
-        bool leftover_lf = line.empty() && now - last_line_us < 30000;
-        last_line_us = now;
-        if (!leftover_lf) break;
+    if (!std::getline(std::cin, line)) {
+        std::cin.clear();
+        vTaskDelay(pdMS_TO_TICKS(100)); // don't spin if the console is broken
+        return "";
     }
     normalise_line(line);
     return line;

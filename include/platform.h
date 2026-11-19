@@ -13,11 +13,12 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-// Let the idle task run now and then during long searches (no-op for most calls)
+// Let the idle task run now and then during long searches (no-op for most calls).
+// One tick is 10 ms at the default 100 Hz, so only do it once a second (~1% of search time)
 inline void platform_yield() {
     static int64_t last_us = 0;
     int64_t now = esp_timer_get_time();
-    if (now - last_us >= 100000) {
+    if (now - last_us >= 1000000) {
         last_us = now;
         vTaskDelay(1);
     }

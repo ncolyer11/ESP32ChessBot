@@ -58,7 +58,7 @@ incremental zobrist hash after every move. CI runs these on Linux and Windows an
 
 
 ## ESP32-S3
-The same engine runs on an ESP32-S3 (target: ESP32-S3-DevKitC-1, with or without PSRAM) and is played over the
+The same engine runs on an ESP32-S3 (target: ESP32-S3-DevKitC-1, with octal PSRAM or none) and is played over the
 USB serial console. **It builds and links but hasn't been run on hardware yet.** It is built with
 [PlatformIO](https://platformio.org/) and ESP-IDF:
 
@@ -76,7 +76,8 @@ asks which side you play, an optional FEN, search depth (default 8, max 16), tim
 and unicode or ascii board. Moves and commands are the same as on the desktop. After each game or bench it prints
 free heap, PSRAM, transposition table size and the peak stack used by the engine task, then goes back to the menu.
 
-The engine runs in its own 48 KB task on core 1 and briefly yields every ~100 ms so the watchdog stays happy.
+The engine runs in its own 48 KB task on core 1 (peak use is estimated around 37 KB at max depth) and briefly
+yields about once a second.
 With 8 MB octal PSRAM (N8R8, N16R8) the transposition table is 2^17 entries (~1.5 MB) in PSRAM, without PSRAM
 it falls back to 2^12 entries (48 KB) in internal ram. Quad PSRAM boards (e.g. N8R2) need
 `CONFIG_SPIRAM_MODE_QUAD=y` instead of `CONFIG_SPIRAM_MODE_OCT=y` in `sdkconfig.defaults`.
@@ -84,6 +85,9 @@ it falls back to 2^12 entries (48 KB) in internal ram. Quad PSRAM boards (e.g. N
 To use the native USB port instead of the UART one, replace `CONFIG_ESP_CONSOLE_UART_DEFAULT=y` with
 `CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y` in `sdkconfig.defaults` (or run `pio run -e esp32s3 -t menuconfig`),
 delete the generated `sdkconfig.esp32s3` and rebuild.
+
+Any time `sdkconfig.defaults` changes (yours or after a pull), delete `sdkconfig.esp32s3` before building,
+otherwise the old generated config wins and the new defaults are ignored.
 
 
 ## Layout
