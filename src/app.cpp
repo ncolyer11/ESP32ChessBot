@@ -29,6 +29,7 @@ void app_init() {
 
 int app_run(const AppConfig &cfg) {
     MODE = cfg.test;
+    ASCII_BOARD = cfg.ascii_board;
     bot_depth = cfg.depth;
     bot_time_ms = cfg.time_ms;
 

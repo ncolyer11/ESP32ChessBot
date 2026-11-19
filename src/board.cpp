@@ -62,7 +62,7 @@ void print_board(Board *b, bool show_params, bool show_bitboards) {
         for (int file = 0; file < 8; ++file) {
             Piece piece = b->squares[file_rank_to_square_idx(file, rank)];
             
-            if (MODE) {
+            if (MODE || ASCII_BOARD) {
                 char symbol = PIECE_SYMBOLS[piece & TYPE_MASK];
                 symbol = (piece & BLACK) ? tolower(symbol) : toupper(symbol);
                 std::cout << symbol << " ";
@@ -73,7 +73,7 @@ void print_board(Board *b, bool show_params, bool show_bitboards) {
             const char *bg = is_light_square(file, rank) ? WHITE_BG : GREEN_BG;
             std::cout << bg << get_sprite(piece) << RESET;
         }
-        if (!MODE) std::cout << RESET_LINE;
+        if (!MODE && !ASCII_BOARD) std::cout << RESET_LINE;
         std::cout << std::endl;
     }
 

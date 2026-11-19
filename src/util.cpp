@@ -8,6 +8,7 @@
 #include "util.h"
 
 bool MODE = false;
+bool ASCII_BOARD = false;
 int bot_depth = DEFAULT_DEPTH;
 int bot_time_ms = 0;
 bool player1_is_human = true;

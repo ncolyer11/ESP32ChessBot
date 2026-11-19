@@ -22,6 +22,8 @@ int main(int argc, char **argv) {
             return 0;
         } else if (arg == "--test") {
             cfg.test = true;
+        } else if (arg == "--ascii") {
+            cfg.ascii_board = true;
         } else if (arg == "--bench") {
             cfg.bench = true;
         } else if (arg == "--perft-suite") {
@@ -60,6 +62,7 @@ void print_usage() {
         "  --depth N               bot max search depth (default " << DEFAULT_DEPTH << ")\n"
         "  --time MS               bot time limit per move in ms (default 0 = no limit)\n"
         "  --fen \"<fen>\"           start from this position\n"
+        "  --ascii                 plain letters for the pieces (for terminals without unicode)\n"
         "  --test                  deterministic test mode (ascii board, FEN + player prompts on stdin)\n"
         "  --perft N               count legal move tree leaves to depth N (with optional --fen)\n"
         "  --perft-suite           run the known perft numbers, non-zero exit on mismatch\n"
