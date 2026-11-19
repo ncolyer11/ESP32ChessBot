@@ -36,3 +36,11 @@ bin/
 build/
 *.exe
 tmp_actual.txt
+
+# esp32 / platformio
+.pio/
+sdkconfig
+sdkconfig.*
+!sdkconfig.defaults
+managed_components/
+dependencies.lock

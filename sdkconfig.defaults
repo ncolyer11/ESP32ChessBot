@@ -1,0 +1,17 @@
+# ESP32-S3 defaults for the chess bot
+CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240=y
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+CONFIG_COMPILER_CXX_EXCEPTIONS=y
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+
+# octal PSRAM for the big transposition table, but still boots on boards without it
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_IGNORE_NOTFOUND=y
+
+# console on the UART (the "UART" usb port of the devkit). For the native usb port use
+# CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y instead
+CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+
+# the engine task never idles on core 1 while searching, don't complain about it
+CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU1=n
