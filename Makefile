@@ -1,7 +1,7 @@
 CXX ?= g++
 CXXFLAGS = -std=c++20 -Wall -Wextra -O2
 
-SRCS = main.cpp \
+SRCS = main.cpp src/app.cpp \
 	src/board.cpp src/boardRepresentation.cpp src/util.cpp src/fen.cpp src/move.cpp \
 	src/ai/eval.cpp src/movegen.cpp src/ai/chess_search.cpp
 
