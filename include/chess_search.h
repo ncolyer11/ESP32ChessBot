@@ -5,7 +5,8 @@
 #include "board.h"
 #include "move.h"
 
-Move get_next_bot_move(Board *b, int depth);
+// depth is the max search depth; time_ms > 0 also limits thinking time (0 = no limit)
+Move get_next_bot_move(Board *b, int depth, int time_ms = 0);
 bool get_check(Board *b, Move move, int id);
 
 // infinities
