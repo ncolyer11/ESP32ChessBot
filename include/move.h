@@ -68,4 +68,3 @@ std::string move_to_move_str(Move move);
 Move move_str_to_move(std::string move_str);
 bool validate_move_encoding(Move move);
 
-void quicksort_moves(Move *moves, int *scores, int low, int high);
