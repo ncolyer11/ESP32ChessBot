@@ -9,6 +9,8 @@
 #include "driver/uart.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
+#include "esp_system.h"
+#include "esp_timer.h"
 #include "driver/uart_vfs.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -46,13 +48,22 @@ static void console_init() {
     setvbuf(stdin, nullptr, _IONBF, 0);
 }
 
-// Prompt and read one line, returns "" on empty input or EOF
+// Prompt and read one line, returns "" on empty input or EOF.
+// Terminals that send CR+LF give an extra empty line (CR is turned into LF), so an empty line
+// that turns up within a few ms of the previous answer is that leftover LF and gets skipped
 static std::string ask(const char *prompt) {
+    static int64_t last_line_us = 0;
     std::cout << prompt << std::flush;
     std::string line;
-    if (!std::getline(std::cin, line)) {
-        std::cin.clear();
-        return "";
+    while (true) {
+        if (!std::getline(std::cin, line)) {
+            std::cin.clear();
+            return "";
+        }
+        int64_t now = esp_timer_get_time();
+        bool leftover_lf = line.empty() && now - last_line_us < 30000;
+        last_line_us = now;
+        if (!leftover_lf) break;
     }
     normalise_line(line);
     return line;
@@ -74,8 +85,8 @@ static void print_stats() {
               << "psram: " << heap_caps_get_total_size(MALLOC_CAP_SPIRAM) << " B total, "
               << heap_caps_get_free_size(MALLOC_CAP_SPIRAM) << " B free\n"
               << "tt: " << tt_bytes() << " B\n"
-              << "engine stack high water mark: " << uxTaskGetStackHighWaterMark(nullptr) << " B used of "
-              << ENGINE_STACK_BYTES << " B (stack left, lowest ever)\n" << std::endl;
+              << "engine stack: peak " << (ENGINE_STACK_BYTES - (int)uxTaskGetStackHighWaterMark(nullptr))
+              << " B used of " << ENGINE_STACK_BYTES << " B\n" << std::endl;
 }
 
 static void engine_task(void *) {
