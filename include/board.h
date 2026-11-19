@@ -1,9 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include <deque>
-#include <functional>
-#include <unordered_map>
+#include <string>
 #include <vector>
 
 #include "piece.h"
@@ -11,14 +9,6 @@
 
 
 using Hash = uint64_t;
-using HashCountMap = std::unordered_map<Hash, int>;
-using HashHistory = std::deque<Hash>;
-using HashCountMapIt = HashCountMap::iterator;
-using HashCountMapConstIt = HashCountMap::const_iterator;
-
-extern HashCountMap board_pos_counts; // Stores hashes at each move for repetition detection
-extern HashHistory board_pos_history; // Stores orders for undoing moves
-
 // Zobrist keys, generated at compile time from a fixed-seed splitmix64 (lives in flash on ESP32)
 struct ZobristTables {
     Hash piece[12][64];
@@ -70,7 +60,7 @@ struct Board {
 };
 
 
-void init_board(Board *b);
+void init_board(Board *b, const std::string &fen = "");
 void print_board(Board *b, bool show_params = false, bool show_bitboards = false);
 void print_board_from_bbs(Board *b, bool show_params = false);
 void print_params(Board *b);
@@ -79,9 +69,3 @@ void print_bitboards(Board *b);
 Hash compute_zobrist(const Board *b);       // full recompute (init + debug verification)
 int repetition_count(const Board *b);       // earlier occurrences of the current position
 bool is_insufficient_material(const Board *b);
-
-// Old hash API, to be removed once src/ai stops using it
-Hash hash_board_state(const Board* b, bool squares_only = false);
-void add_position_hash(HashHistory& history, HashCountMap& counts, Hash hash);
-
-void remove_last_position_hash(HashHistory& history, HashCountMap& counts);

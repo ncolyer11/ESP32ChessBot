@@ -9,17 +9,17 @@ for %%t in (tests\*.in) do (
     set name=%%~nt
     echo Testing tests\!name!... 
 
-    .\bin\chesp32.exe < tests\!name!.in > tmp_actual.txt
+    .\bin\chesp32.exe --test < tests\!name!.in > tmp_actual.txt
     set "expected=tests\!name!.out"
 
     fc /L tmp_actual.txt !expected! >nul
     if errorlevel 1 (
-        echo ❌ FAILED
+        echo FAILED
         set /a fail+=1
         echo Diff:
         fc tmp_actual.txt !expected!
     ) else (
-        echo ✅ PASSED
+        echo PASSED
         set /a pass+=1
     )
     echo.
@@ -30,9 +30,10 @@ echo =========================
 echo Finished
 echo =========================
 
-if %pass% neq 0 echo ✅ %pass% passed
-if %fail% neq 0 echo ❌ %fail% failed
+if %pass% neq 0 echo %pass% passed
+if %fail% neq 0 echo %fail% failed
 echo =========================
 echo.
 
+if %fail% neq 0 exit /b 1
 exit /b 0

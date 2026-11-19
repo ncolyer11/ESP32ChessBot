@@ -19,7 +19,11 @@ uint64_t knight_attacks[64];
 uint64_t king_attacks[64];
 
 Move gen_and_validate_all_moves(Board *b, MoveList *legal_move_list);
-Move process_command_moves(Board *b, std::string move_str);
+
+enum CommandResult { CMD_NOT_A_COMMAND, CMD_HANDLED, CMD_QUIT, CMD_UNDONE };
+static CommandResult process_command_moves(Board *b, std::string move_str);
+static void print_help();
+static bool undo_plies(Board *b, int plies);
 
 // Request next move from the current player
 Move get_next_player_move(Board *b) {
@@ -27,8 +31,7 @@ Move get_next_player_move(Board *b) {
     MoveList legal_move_list = { {}, 0 };
     if (gen_and_validate_all_moves(b, &legal_move_list) == NO_MOVES) return NO_MOVES;
 
-    Move move;
-    do {
+    while (true) {
         std::string move_str;
         std::cout << ((b->side_to_move == 0) ? "White" : "Black") << " to move: ";
         if (!(std::cin >> move_str)) {  // exit on EOF (ctrl + z + enter on Windows *apparently*)
@@ -36,69 +39,80 @@ Move get_next_player_move(Board *b) {
             return INVALID_MOVE;
         }
 
-        Move cmd_move = process_command_moves(b, move_str);
-        if (cmd_move == INVALID_MOVE) {
-            return INVALID_MOVE;
-        } else if (cmd_move == NO_MOVES) {
-            return get_next_player_move(b);
-        }
+        CommandResult cmd = process_command_moves(b, move_str);
+        if (cmd == CMD_QUIT) return INVALID_MOVE;
+        if (cmd == CMD_UNDONE) return UNDO_DONE;
+        if (cmd == CMD_HANDLED) continue;
 
-        move = move_str_to_move(move_str);
-    } while (!is_valid_move(&move, legal_move_list));
-
-    return move;
+        Move move = move_str_to_move(move_str);
+        if (move != INVALID_MOVE && is_valid_move(&move, legal_move_list)) return move;
+        if (move == INVALID_MOVE) std::cout << "Invalid move: " << move_str << " (type h for help)" << std::endl;
+    }
 }
 
-Move process_command_moves(Board *b, std::string move_str) {
+static void print_help() {
+    std::cout << "Enter a move like e2e4 (e7e8q to promote, queen by default) or a command:\n"
+              << "  u  undo back to your last turn (2 plies vs the bot, 1 in 2 player games)\n"
+              << "  z  undo the last 2 plies\n"
+              << "  f  print FEN        d  draw board from bitboards\n"
+              << "  p  print params     b  print bitboards\n"
+              << "  r  resign           q  quit\n"
+              << "  h  this help" << std::endl;
+}
+
+// Undo the given number of plies if there is that much history
+static bool undo_plies(Board *b, int plies) {
+    if ((int)move_history.size() < plies) {
+        std::cout << "Nothing to undo." << std::endl;
+        return false;
+    }
+    std::cout << "Undoing " << plies << (plies == 1 ? " ply" : " plies") << ":";
+    for (int i = 0; i < plies; i++) {
+        Move last_move = move_history.back();
+        std::cout << " " << move_to_move_str(last_move);
+        unmake_move_on_board(b, last_move);
+    }
+    std::cout << std::endl;
+    return true;
+}
+
+static CommandResult process_command_moves(Board *b, std::string move_str) {
     // Convert move_str to lowercase for easier comparison
     std::transform(move_str.begin(), move_str.end(), move_str.begin(), ::tolower);
     if (move_str == "q") {
         std::cout << "Game ended prematurely by user." << std::endl;
-        return INVALID_MOVE;
+        return CMD_QUIT;
     } else if (move_str == "r") {
-        std::cout << "Resigning..." << std::endl;
-        return INVALID_MOVE;
+        std::cout << (b->side_to_move == 0 ? "White" : "Black") << " resigns. "
+                  << (b->side_to_move == 0 ? "Black" : "White") << " wins." << std::endl;
+        return CMD_QUIT;
     } else if (move_str == "u") {
-        if (move_history.size() < 1) {
-            std::cout << "No move to undo." << std::endl;
-            return NO_MOVES;
-        }
-        Move last_move = move_history.back();
-        unmake_move_on_board(b, last_move);
-        std::cout << "Undoing last ply (half a move): " << move_to_move_str(last_move) << std::endl;
-        print_board(b, true, MODE);
-        return NO_MOVES;
+        // vs a bot, go back to the human's previous turn (skip the bot's reply too)
+        bool opponent_is_bot = !player_types[b->side_to_move ^ 1];
+        return undo_plies(b, opponent_is_bot ? 2 : 1) ? CMD_UNDONE : CMD_HANDLED;
     } else if (move_str == "z") {
-        if (move_history.size() < 2) {
-            std::cout << "No moves to undo." << std::endl;
-            return NO_MOVES;
-        }
-        Move last_move = move_history.back();
-        Move second_last_move = *(move_history.rbegin() + 1);
-        unmake_move_on_board(b, last_move);
-        unmake_move_on_board(b, second_last_move);
-        std::cout << "Undoing last 2 plys (1 move): " << move_to_move_str(last_move)
-                  << " and " << move_to_move_str(second_last_move) << std::endl;
-        print_board(b, true, MODE);
-        return NO_MOVES;       
+        return undo_plies(b, 2) ? CMD_UNDONE : CMD_HANDLED;
     } else if (move_str == "f") {
         std::cout << "Exporting FEN: " << export_position_to_fen(b) << std::endl;
-        return NO_MOVES;
+        return CMD_HANDLED;
     } else if (move_str == "d") {
         print_board_from_bbs(b, true);
-        return NO_MOVES;
+        return CMD_HANDLED;
     } else if (move_str == "p") {
         print_params(b);
-        return NO_MOVES;
+        return CMD_HANDLED;
     } else if (move_str == "b") {
         print_bitboards(b);
-        return NO_MOVES;
+        return CMD_HANDLED;
+    } else if (move_str == "h" || move_str == "help" || move_str == "?") {
+        print_help();
+        return CMD_HANDLED;
     }
 
-    return 1;
+    return CMD_NOT_A_COMMAND;
 }
 
-bool is_valid_move(Move *move, MoveList legal_move_list) {
+bool is_valid_move(Move *move, const MoveList &legal_move_list) {
     for (int i = 0; i < legal_move_list.count; ++i) {
         int flag = move_flag(*move);
         Move legal_move = legal_move_list.moves[i];
@@ -424,12 +438,6 @@ bool is_draw(uint8_t half_move_clock) {
 
 bool is_stalemate(int legal_moves_count, bool is_king_in_check) {
     return (legal_moves_count == 0) && !is_king_in_check;
-}
-
-bool is_repetition(const HashCountMap& board_position_counts, Hash hash) {
-    HashCountMapConstIt it = board_position_counts.find(hash);
-    bool has_3_plus_hashes = it != board_position_counts.end() && it->second >= 3;
-    return has_3_plus_hashes;
 }
 
 Move gen_and_validate_all_moves(Board *b, MoveList *legal_move_list) {

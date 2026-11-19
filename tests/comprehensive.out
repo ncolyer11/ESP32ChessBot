@@ -1,6 +1,5 @@
-Enter 'test' to activate TEST MODE: TEST MODE ACTIVATED
 Chess engine starting...
-Is player 1 human? (Y/n): Is player 2 human? (Y/n): Enter a starting position (FEN or @custom_name): Read: @coverage
+Is white human? (Y/n): Is black human? (Y/n): Enter a starting position (FEN or @custom_name): Read: @coverage
 Loading position from FEN: r3kb1r/pp3bP1/3n4/1r6/1n1p4/R7/pKPQ1p1q/8 w q - 0 1
 Board initialised.
 
@@ -39,7 +38,7 @@ White to move: 8 r . . . k b . Q
 1 . . . . . . . . 
   a b c d e f g h 
 
-Params: b q - 0 2
+Params: b q - 0 1
 Bitboards:
 wk: 0000000000000000000000000000000000000000000000000000001000000000
 wp: 0000000000000000000000000000000000000000000000000000010000000000
@@ -89,7 +88,7 @@ White to move: 8 . . k r . b . Q
 1 . . . . . . . . 
   a b c d e f g h 
 
-Params: b - c3 0 3
+Params: b - c3 0 2
 Bitboards:
 wk: 0000000000000000000000000000000000000000000000000000001000000000
 wp: 0000000000000000000000000000000000000100000000000000000000000000
@@ -139,7 +138,7 @@ White to move: 8 . . k r . b . Q
 1 . . . . . . . . 
   a b c d e f g h 
 
-Params: b - - 0 4
+Params: b - - 0 3
 Bitboards:
 wk: 0000000000000000000000000000000000000000000000000000001000000000
 wp: 0000000000000000000000000000000000000000000000000000000000000000
@@ -189,7 +188,7 @@ White to move: 8 . . . r . b . Q
 1 . . . . . . . . 
   a b c d e f g h 
 
-Params: b - - 2 5
+Params: b - - 2 4
 Bitboards:
 wk: 0000000000000000000000000000000000000000000000000000001000000000
 wp: 0000000000000000000000000000000000000000000000000000000000000000
@@ -242,7 +241,7 @@ White to move: 8 . . . r . b . Q
 1 . . . . . . . . 
   a b c d e f g h 
 
-Params: b - - 4 6
+Params: b - - 4 5
 Bitboards:
 wk: 0000000000000000000000000000000000000000000000000000010000000000
 wp: 0000000000000000000000000000000000000000000000000000000000000000
@@ -292,7 +291,7 @@ White to move: 8 . . . r . b . Q
 1 n . . . . . . . 
   a b c d e f g h 
 
-Params: b - - 1 7
+Params: b - - 1 6
 Bitboards:
 wk: 0000000000000000000000000000000000000000000000000000100000000000
 wp: 0000000000000000000000000000000000000000000000000000000000000000
@@ -342,7 +341,7 @@ White to move: 8 . . . r . . . Q
 1 n . . K . . . . 
   a b c d e f g h 
 
-Params: b - - 3 8
+Params: b - - 3 7
 Bitboards:
 wk: 0000000000000000000000000000000000000000000000000000000000001000
 wp: 0000000000000000000000000000000000000000000000000000000000000000

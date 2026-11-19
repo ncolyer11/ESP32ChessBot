@@ -13,13 +13,12 @@ static inline void add_move(MoveList *move_list, int from, int to, int flag) {
 }
 
 Move get_next_player_move(Board *b);
-Move gen_and_validate_all_moves(Board *b);
-bool is_valid_move(Move *move, MoveList legal_move_list);
+Move gen_and_validate_all_moves(Board *b, MoveList *legal_move_list);
+bool is_valid_move(Move *move, const MoveList &legal_move_list);
 bool check_end_game_conditions(Board *b, int legal_moves_count);
 bool is_checkmate(int legal_moves_count, bool is_king_in_check);
 bool is_draw(uint8_t half_move_clock);
 bool is_stalemate(int legal_moves_count, bool is_king_in_check);
-bool is_repetition(const std::unordered_map<Hash, int> &board_position_counts, Hash hash);
 
 // Main functions to generate and filter moves
 void generate_moves(Board *b, MoveList *legal_move_list, bool only_captures = false);

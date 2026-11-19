@@ -30,3 +30,9 @@
 out.txt
 test.exe
 test.cpp
+
+# Build output
+bin/
+build/
+*.exe
+tmp_actual.txt

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "piece.h"
 #include "util.h"
@@ -29,6 +30,7 @@ constexpr const int DOUBLE_PAWN_FLAG = 7;
 
 constexpr const Move INVALID_MOVE = 0xFFFF;
 constexpr const Move NO_MOVES = 0x0000;
+constexpr const Move UNDO_DONE = 0xFFFE; // returned by get_next_player_move after an undo command
 
 // Attack bitboards (precomputed)
 extern U64 pawn_attacks[2][64];

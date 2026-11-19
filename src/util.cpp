@@ -8,6 +8,8 @@
 #include "util.h"
 
 bool MODE = false;
+int bot_depth = DEFAULT_DEPTH;
+int bot_time_ms = 0;
 bool player1_is_human = true;
 bool player2_is_human = true;
 bool player_types[2] = {player1_is_human, player2_is_human};
@@ -100,19 +102,4 @@ void normalise_line(std::string &s) {
         s.erase(0, 3);
     if (!s.empty() && s.back() == '\r')
         s.pop_back();
-}
-
-void check_for_test_mode() {
-    std::string input;
-    std::cout << "Enter 'test' to activate TEST MODE: " << std::flush;
-    if (!std::getline(std::cin, input)) return;
-    normalise_line(input);
-    if (input == "test") {
-        MODE = true;
-        std::cout << "TEST MODE ACTIVATED\n";
-    }
-}
-
-void test_popcount(U64 x) {
-    std::cout << "Popcount of " << x << " (0b" << std::bitset<64>(x) << ") is " << popcount(x) << std::endl;
 }

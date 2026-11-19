@@ -51,7 +51,6 @@ bool make_move_on_board(Board *b, Move move, bool in_search) {
 
     if (!in_search) {
         move_history.push_back(move);
-        add_position_hash(board_pos_history, board_pos_counts, hash_board_state(b, true));
     }
     b->hash_history.push_back(b->zobrist);
 
@@ -147,7 +146,6 @@ void unmake_move_on_board(Board *b, Move move, bool in_search) {
 
     if (!in_search) {
         move_history.pop_back();
-        remove_last_position_hash(board_pos_history, board_pos_counts);
     }
 
     if (!b->hash_history.empty()) b->hash_history.pop_back();
@@ -370,6 +368,7 @@ Move move_str_to_move(std::string move_str) {
     }
     int from = alg_to_square_idx(move_str.substr(0, 2));
     int to = alg_to_square_idx(move_str.substr(2, 2));
+    if (from < 0 || to < 0) return INVALID_MOVE;
     int flag = 0;
     if (move_str.length() == 5) {
         switch (move_str[4]) {

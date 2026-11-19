@@ -109,8 +109,6 @@ bool load_position_from_fen(Board *b, std::string fen) {
     b->half_move_clock = 0;
     b->full_moves = 1;
     move_history.clear();
-    board_pos_history.clear();
-    board_pos_counts.clear();
 
     std::cout << "Loading position from FEN: " << fen << std::endl;
     int file = 0, rank = 7;
