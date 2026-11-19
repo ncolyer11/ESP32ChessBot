@@ -272,55 +272,19 @@ void update_castling_rights(Board *b, int from, int to, Piece piece, Piece captu
     }
 }
 
-bool printed = false;
 // -- King in check detection (uses attack bitboards) --
 bool king_in_check(Board *b) {
     bool side_to_move = b->side_to_move;
     Piece king = KING | (side_to_move ? BLACK : WHITE);
     U64 king_bb = bitboard_for_piece(b, king);
-    if (king_bb == 0) {
-        std::cout << "[king_in_check] King not found for side "
-                  << (side_to_move ? "Black" : "White") << std::endl;
-        if (!printed) {
-            std::cout << "Board state:" << std::endl;
-            print_board_from_bbs(b, true);
-            printed = true;
-        }
-        return false;
-    }
+    if (king_bb == 0) return false; // no king (only happens in broken positions)
 
     int king_sq = bit_scan_forward(king_bb);
     uint8_t opponent_color = side_to_move ? WHITE : BLACK;
 
-    // --- Pawn attacks ---
-    // Calculate the squares from which an opponent's pawn could attack the king
-    U64 potential_attacking_pawn_squares = 0ULL;
-
-    if (!side_to_move) { // King is White (b->side_to_move == 0), so attacked by Black pawns
-        // Check for boundary conditions:
-        if (king_sq / 8 < 6) { // King is below 7th rank
-            if (king_sq % 8 > 0) { // King is not on 'a' file
-                potential_attacking_pawn_squares |= (1ULL << (king_sq + 7)); 
-            }
-            if (king_sq % 8 < 7) { // King is not on 'h' file
-                potential_attacking_pawn_squares |= (1ULL << (king_sq + 9));
-            }
-        }
-    } else { // King is Black (b->side_to_move == 1), so attacked by White pawns
-        // Check for boundary conditions:
-        if (king_sq / 8 > 1) { // King is above 1st rank
-            if (king_sq % 8 > 0) { // King is not on 'a' file
-                potential_attacking_pawn_squares |= (1ULL << (king_sq - 9));
-            }
-            if (king_sq % 8 < 7) { // King is not on 'h' file
-                potential_attacking_pawn_squares |= (1ULL << (king_sq - 7)); 
-            }
-        }
-    }
-
-    // Now, check if any opponent pawns actually occupy these potential attacking squares
-    U64 actual_opponent_pawns = bitboard_for_piece(b, PAWN | opponent_color);
-    if (potential_attacking_pawn_squares & actual_opponent_pawns) {
+    // Pawn attacks: squares a pawn of our colour would attack from the king square
+    // are exactly the squares an enemy pawn attacks the king from
+    if (pawn_attacks[side_to_move][king_sq] & bitboard_for_piece(b, PAWN | opponent_color)) {
         return true;
     }
 

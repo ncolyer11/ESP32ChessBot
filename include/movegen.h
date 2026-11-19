@@ -28,7 +28,8 @@ void generate_castling_moves(Board *b, MoveList *move_list, bool only_captures =
 void generate_sliding_moves(Board *b, MoveList *move_list, bool only_captures = false);
 void generate_knight_moves(Board *b, MoveList *move_list, bool only_captures = false);
 void generate_pawn_moves(Board *b, MoveList *move_list, bool only_captures = false);
-void filter_legal_moves(Board *b, MoveList move_list, MoveList *legal_move_list);
+void filter_legal_moves(Board *b, const MoveList &move_list, MoveList *legal_move_list);
+uint64_t perft(Board *b, int depth);
 
 // Setup (call at start)
 void init_attack_bitboards();

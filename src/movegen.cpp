@@ -141,15 +141,10 @@ void generate_moves(Board *b, MoveList *legal_move_list, bool only_captures) {
 }
 
 // -- Legal move filtering --
-void filter_legal_moves(Board *b, MoveList move_list, MoveList *legal_move_list) {
+void filter_legal_moves(Board *b, const MoveList &move_list, MoveList *legal_move_list) {
     legal_move_list->count = 0;
     for (int i = 0; i < move_list.count; i++) {
-        std::string move_str = move_to_move_str(move_list.moves[i]);
-    
-        bool in_check = get_check(b, move_list.moves[i], 101);
-        // bool is_repeat = is_repetition(board_pos_counts, hash_board_state(b, true));
-
-        if (!in_check /*&& !is_repeat*/) {
+        if (!get_check(b, move_list.moves[i], 101)) {
             legal_move_list->moves[legal_move_list->count++] = move_list.moves[i];
         }
     }
@@ -200,6 +195,17 @@ void init_attack_bitboards() {
     }
 }
 
+static inline U64 friendly_occupancy(Board *b) {
+    int c = b->side_to_move ? 6 : 0;
+    return b->bitboards[c] | b->bitboards[c + 1] | b->bitboards[c + 2] |
+           b->bitboards[c + 3] | b->bitboards[c + 4] | b->bitboards[c + 5];
+}
+static inline U64 opponent_occupancy(Board *b) {
+    int c = b->side_to_move ? 0 : 6;
+    return b->bitboards[c] | b->bitboards[c + 1] | b->bitboards[c + 2] |
+           b->bitboards[c + 3] | b->bitboards[c + 4] | b->bitboards[c + 5];
+}
+
 // -- King moves (not castling) --
 void generate_king_moves(Board *b, MoveList *move_list, bool only_captures) {
     Piece king_piece = KING | friendly_colour(b);
@@ -207,15 +213,11 @@ void generate_king_moves(Board *b, MoveList *move_list, bool only_captures) {
     if (!king_bb) return; // No king on the board
     int king_sq = bit_scan_forward(king_bb);
 
-    uint64_t king_targets = king_attacks[king_sq];
-    for (int sq_idx = 0; sq_idx < 64; sq_idx++) {
-        Piece to_square = b->squares[sq_idx];
-        if ((king_targets & (1ULL << sq_idx)) && 
-            (!is_friendly(b, to_square) || to_square == NONE)) {
-                
-            if (only_captures && to_square == NONE) continue; 
-            add_move(move_list, king_sq, sq_idx, 0);
-        }
+    U64 targets = king_attacks[king_sq] & ~friendly_occupancy(b);
+    if (only_captures) targets &= opponent_occupancy(b);
+    while (targets) {
+        add_move(move_list, king_sq, bit_scan_forward(targets), 0);
+        targets &= targets - 1;
     }
 }
 
@@ -257,27 +259,30 @@ void generate_castling_moves(Board *b, MoveList *move_list, bool only_captures) 
 // -- Sliding piece moves (rooks, bishops, queens) --
 void generate_sliding_moves(Board *b, MoveList *move_list, bool only_captures) {
     static const int directions[8] = {1, -1, 8, -8, 9, -9, 7, -7};
-    for (int i = 0; i < 64; i++) {
-        Piece p = b->squares[i];
-        if (!is_friendly(b, p)) continue;
-        int type = p & TYPE_MASK;
-        int start_dir = (type == ROOK) ? 0 : (type == BISHOP) ? 4 : 0;
-        int end_dir = (type == ROOK) ? 4 : (type == BISHOP) ? 8 : (type == QUEEN) ? 8 : 0;
-        if (type != ROOK && type != BISHOP && type != QUEEN) continue;
-        for (int d = start_dir; d < end_dir; ++d) {
-            int n = i;
-            while (true) {
-                int next = n + directions[d];
-                if (next < 0 || next >= 64 || abs((n % 8) - (next % 8)) > 2) break;
-                Piece target = b->squares[next];
-                if (is_friendly(b, target)) break;
-                if (only_captures && target == NONE) {
-                    n = next; // skip empty squares if only captures are requested
-                    continue;
+    int c = b->side_to_move ? 6 : 0;
+    // rooks (idx 4), bishops (3), queens (5)
+    for (int type = 3; type <= 5; type++) {
+        int start_dir = (type == 4) ? 0 : (type == 3) ? 4 : 0;
+        int end_dir = (type == 4) ? 4 : 8;
+        U64 pieces = b->bitboards[c + type];
+        while (pieces) {
+            int i = bit_scan_forward(pieces);
+            pieces &= pieces - 1;
+            for (int d = start_dir; d < end_dir; ++d) {
+                int n = i;
+                while (true) {
+                    int next = n + directions[d];
+                    if (next < 0 || next >= 64 || abs((n % 8) - (next % 8)) > 2) break;
+                    Piece target = b->squares[next];
+                    if (is_friendly(b, target)) break;
+                    if (only_captures && target == NONE) {
+                        n = next; // skip empty squares if only captures are requested
+                        continue;
+                    }
+                    add_move(move_list, i, next, 0);
+                    if (target != NONE) break;
+                    n = next;
                 }
-                add_move(move_list, i, next, 0);
-                if (target != NONE) break;
-                n = next;
             }
         }
     }
@@ -285,15 +290,16 @@ void generate_sliding_moves(Board *b, MoveList *move_list, bool only_captures) {
 
 // -- Knight moves --
 void generate_knight_moves(Board *b, MoveList *move_list, bool only_captures) {
-    for (int i = 0; i < 64; i++) {
-        if (b->squares[i] != (KNIGHT | friendly_colour(b))) continue;
-        uint64_t attacks = knight_attacks[i];
-        for (int t = 0; t < 64; t++) {
-            Piece to_square = b->squares[t];
-            if ((attacks & (1ULL << t)) && !is_friendly(b, to_square)) {
-                if (only_captures && to_square == NONE) continue;
-                add_move(move_list, i, t, 0);
-            }
+    U64 knights = b->bitboards[piece_to_bb_idx(KNIGHT | friendly_colour(b))];
+    U64 mask = ~friendly_occupancy(b);
+    if (only_captures) mask &= opponent_occupancy(b);
+    while (knights) {
+        int i = bit_scan_forward(knights);
+        knights &= knights - 1;
+        U64 targets = knight_attacks[i] & mask;
+        while (targets) {
+            add_move(move_list, i, bit_scan_forward(targets), 0);
+            targets &= targets - 1;
         }
     }
 }
@@ -303,8 +309,10 @@ void generate_pawn_moves(Board *b, MoveList *move_list, bool only_captures) {
     int direction = b->side_to_move ? -8 : 8;
     int start_rank = b->side_to_move ? 6 : 1;
     int promotion_rank = b->side_to_move ? 0 : 7;
-    for (int sq_idx = 0; sq_idx < 64; sq_idx++) {
-        if (b->squares[sq_idx] != (PAWN | friendly_colour(b))) continue;
+    U64 pawns = b->bitboards[piece_to_bb_idx(PAWN | friendly_colour(b))];
+    while (pawns) {
+        int sq_idx = bit_scan_forward(pawns);
+        pawns &= pawns - 1;
         // Forward move
         int to = sq_idx + direction;
         if (!only_captures && (to >= 0 && to < 64 && b->squares[to] == NONE)) {
@@ -385,9 +393,15 @@ bool check_end_game_conditions(Board *b, int legal_moves_count) {
         return false;
     }
 
-    if (is_repetition(board_pos_counts, hash_board_state(b, true))) {
+    if (repetition_count(b) >= 2) {
         print_board(b, true);
         std::cout << "Draw by threefold repetition!" << std::endl;
+        return false;
+    }
+
+    if (is_insufficient_material(b)) {
+        print_board(b, true);
+        std::cout << "Draw by insufficient material!" << std::endl;
         return false;
     }
 
@@ -405,7 +419,7 @@ bool is_checkmate(int legal_moves_count, bool is_king_in_check) {
 }
 
 bool is_draw(uint8_t half_move_clock) {
-    return half_move_clock > 100;
+    return half_move_clock >= 100;
 }
 
 bool is_stalemate(int legal_moves_count, bool is_king_in_check) {
@@ -423,4 +437,19 @@ Move gen_and_validate_all_moves(Board *b, MoveList *legal_move_list) {
     if (!check_end_game_conditions(b, legal_move_list->count)) return NO_MOVES;
 
     return true; // indicates available moves
+}
+
+// Counts leaf nodes of the legal move tree
+uint64_t perft(Board *b, int depth) {
+    if (depth == 0) return 1;
+    MoveList moves;
+    generate_moves(b, &moves);
+    if (depth == 1) return moves.count;
+    uint64_t nodes = 0;
+    for (int i = 0; i < moves.count; i++) {
+        make_move_on_board(b, moves.moves[i], true);
+        nodes += perft(b, depth - 1);
+        unmake_move_on_board(b, moves.moves[i], true);
+    }
+    return nodes;
 }
