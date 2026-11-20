@@ -1,6 +1,9 @@
 # ESP32ChessBot
-A 1500–1900 (Lichess)/1400–1700 (FIDE) ELO chess bot written in C++, designed for speed but mainly memory efficiency so it can run on an
+A ~2000 (Lichess)/~1800 (FIDE) ELO chess bot written in C++, designed for speed but mainly memory efficiency so it can run on an
 ESP32-S3. It builds as a normal desktop program too (Linux, macOS, WSL, Windows).
+
+The bot beating Lichess level 5 (~2k ELO):
+<img width="4998" height="1200" alt="image" src="https://github.com/user-attachments/assets/cfdce309-9eba-45cf-8fe2-0df782e232cc" />
 
 
 ## Usage
